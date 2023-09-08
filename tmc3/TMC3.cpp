@@ -813,6 +813,10 @@ ParseParameters(int argc, char* argv[], Parameters& params)
     params.encoder.partition.tileSize, 0,
     "Partition input into cubic tiles of given size")
 
+  ("improvedSplitDirection",
+    params.encoder.partition.improvedSplitDirection, true,
+    "Improves the split direction for trisoup coding")
+
   ("cabac_bypass_stream_enabled_flag",
     params.encoder.sps.cabac_bypass_stream_enabled_flag, false,
     "Controls coding method for ep(bypass) bins")

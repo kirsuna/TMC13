@@ -584,6 +584,58 @@ maxEdgeAxis(const PCCPointSet3& cloud, std::vector<int32_t>& sliceIndexes)
   return maxAxis;
 }
 
+int
+findBestSplitAxis(
+  const PCCPointSet3& cloud,
+  std::vector<int32_t>& aIndexes,
+  int partitionBoundary,
+  int maxPoints)
+{ 
+  // Init Dynamic Programming array
+  Vec3<int> maxs = {0, 0, 0};
+  Vec3<int> mins = {INT32_MAX, INT32_MAX, INT32_MAX};
+  std::cout << "PC: " << aIndexes.size() << std::endl;
+  for (int i = 0; i < aIndexes.size(); ++i){
+    for (int j = 0; j < 3; ++j){
+      maxs[j] = std::max(maxs[j], cloud[aIndexes[i]][j]);
+      mins[j] = std::min(mins[j], cloud[aIndexes[i]][j]);
+    }
+  }
+  Vec3<int> widths = maxs - mins;
+  std::vector<std::vector<std::vector<int>>> dp(3);
+  for (int j = 0; j < 3; ++j){
+    dp[j] = std::vector<std::vector<int>>(2 + widths[j]/partitionBoundary, std::vector<int>(2, 0));
+  }
+  // Fill in Dynamic Programming array
+  int th = 1;
+  for (int i = 0; i < aIndexes.size(); ++i){
+    for (int j = 0; j < 3; ++j){
+      dp[j][(cloud[aIndexes[i]][j] - mins[j]) / partitionBoundary + 1][0] += 1;
+      if ((cloud[aIndexes[i]][j] - mins[j]) % partitionBoundary <= th - 1) {
+        dp[j][(cloud[aIndexes[i]][j] - mins[j]) / partitionBoundary][1] += 1;
+      } else if ((cloud[aIndexes[i]][j] - mins[j]) % partitionBoundary >= partitionBoundary - th) {
+        dp[j][(cloud[aIndexes[i]][j] - mins[j]) / partitionBoundary + 1][1] += 1;
+      }
+    }
+  }
+  // Determine best split direction based on Dynamic Programming array 
+  Vec3<int> scores = {0, 0, 0};
+  for (int j = 0; j < 3; ++j) {
+    int pointCnt = 0, score = 0;
+    for (int i = 0; i < dp[j].size(); ++i) {
+      pointCnt += dp[j][i][0];
+      if (pointCnt > maxPoints) {
+        pointCnt = dp[j][i][0];
+        score += dp[j][i-1][1];
+      }
+    }
+    //std::cout << "PC " << j << ": " << pointCnt << std::endl;
+    scores[j] = score;
+  }
+  // Return
+  return scores.minDim();
+}
+
 //============================================================================
 // When partitionBoundary <= 0,
 //   evenly split slice into several partitions no larger than maxPoints
@@ -596,13 +648,23 @@ splitSlice(
   std::vector<CM_Nodes>& newlist,
   const PCCPointSet3& cloud,
   int maxPoints,
-  int partitionBoundary)
+  int partitionBoundary,
+  bool improvedSplitDirection)
 {
   auto& aIndexes = splitingSlice.nodes[0].pointCloudIndex;
   auto& aIndexesPadding = splitingSlice.nodes[0].pointCloudIndexPadding;
 
   // Split along the longest edge at the median point
-  int splitAxis = maxEdgeAxis(cloud, aIndexes);
+  int splitAxis;
+  if (improvedSplitDirection && partitionBoundary > 0){
+    int ns = std::ceil((double)aIndexes.size() / (double)maxPoints);
+    int ss = aIndexes.size() / ns;
+    int mp = (ss + maxPoints) / 2;
+    splitAxis = findBestSplitAxis(cloud, aIndexes, partitionBoundary, mp);
+  } else {
+    splitAxis = maxEdgeAxis(cloud, aIndexes);
+  }
+
   std::stable_sort(
     aIndexes.begin(), aIndexes.end(), [&](int32_t a, int32_t b) {
       return cloud[a][splitAxis] < cloud[b][splitAxis];
@@ -651,6 +713,8 @@ splitSlice(
         splitIndicesPadding[index] = i + 1;
         ++ index;
         if (index >= numSplit) break;
+      } else {
+        splitIndicesPadding[index] = splitIndicesPadding[index - 1];
       }
     }
 
@@ -878,7 +942,7 @@ refineSlicesByAdjacentInfo(
   int listNum = list.size();
   for (int i = 0; i < listNum; i++) {
     if (tmplist[i].total > maxPoints) {
-      splitSlice(list[i], newlist, cloud, maxPoints, partitionBoundary);
+      splitSlice(list[i], newlist, cloud, maxPoints, partitionBoundary, params.improvedSplitDirection);
       for (int j = 0; j < newlist.size(); j++) {
         newSlice.push_back(newlist[j]);
       }

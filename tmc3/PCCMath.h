@@ -113,6 +113,22 @@ public:
     return std::max(data[2], std::max(abs(data[0]), abs(data[1])));
   }
 
+  // The index of the minimum element
+  int minDim() const {
+    int minIndex = 0;
+    for (int i = 1; i < 3; ++i)
+      minIndex = data[i] < data[minIndex]? i : minIndex;
+    return minIndex;
+  }
+
+  // The index of the maximum element
+  int maxDim() const {
+    int maxIndex = 0;
+    for (int i = 1; i < 3; ++i)
+      maxIndex = data[i] > data[maxIndex]? i : maxIndex;
+    return maxIndex;
+  }
+
   // The minimum element
   T min() const { return std::min({data[0], data[1], data[2]}); }
 

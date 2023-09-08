@@ -85,6 +85,9 @@ struct PartitionParams {
   // Baseline tile width. (0 => disabled)
   int tileSize;
 
+  // Baseline tile width. (0 => disabled)
+  bool improvedSplitDirection;
+
   // use safe partitionning for Trisoup, aligning nodes to a global grid
   bool safeTrisoupPartionning;
 };
