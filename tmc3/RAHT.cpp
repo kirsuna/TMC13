@@ -111,8 +111,8 @@ reduceUnique(
   int numAttrs,
   std::vector<UrahtNode>* weightsIn,
   std::vector<UrahtNode>* weightsOut,
-  std::vector<int>* attrsIn,
-  std::vector<int>* attrsOut,
+  std::vector<int64_t>* attrsIn,
+  std::vector<int64_t>* attrsOut,
   bool integer_haar_enable_flag)
 {
   // process a single level of the tree
@@ -161,8 +161,8 @@ reduceLevel(
   int numAttrs,
   std::vector<UrahtNode>* weightsIn,
   std::vector<UrahtNode>* weightsOut,
-  std::vector<int>* attrsIn,
-  std::vector<int>* attrsOut,
+  std::vector<int64_t>* attrsIn,
+  std::vector<int64_t>* attrsOut,
   bool integer_haar_enable_flag
   )
 {
@@ -214,8 +214,8 @@ expandLevel(
   int numAttrs,
   std::vector<UrahtNode>* weightsIn,  // expand by numNodes before expand
   std::vector<UrahtNode>* weightsOut,  // shrink after expand
-  std::vector<int>* attrsIn,
-  std::vector<int>* attrsOut,
+  std::vector<int64_t>* attrsIn,
+  std::vector<int64_t>* attrsOut,
   bool integer_haar_enable_flag)
 {
   if (numNodes == 0)
@@ -850,8 +850,8 @@ int
 estimate_layer_filter(
   const std::vector<UrahtNode>& weightsLf,
   const std::vector<UrahtNode>& weightsLf_ref,
-  const std::vector<int>& attrsLf,
-  const std::vector<int>& attrsLf_ref,
+  const std::vector<int64_t>& attrsLf,
+  const std::vector<int64_t>& attrsLf_ref,
   const std::vector<int64_t>& attrRecParentUs,
   int level, int level_ref, int numAttrs, bool inheritDc,  bool rahtExtension
 ){
@@ -1043,10 +1043,10 @@ uraht_process(
   }
 
   std::vector<UrahtNode> weightsLf, weightsHf;
-  std::vector<int> attrsLf, attrsHf;
+  std::vector<int64_t> attrsLf, attrsHf;
 
   std::vector<UrahtNode> weightsLf_ref, weightsHf_ref;
-  std::vector<int> attrsLf_ref, attrsHf_ref;
+  std::vector<int64_t> attrsLf_ref, attrsHf_ref;
 
   bool enableACInterPred = attrInterPredParams.enableAttrInterPred;
   const bool enableDCInterPred = attrInterPredParams.enableAttrInterPred;
