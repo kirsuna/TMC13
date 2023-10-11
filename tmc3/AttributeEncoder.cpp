@@ -1499,25 +1499,25 @@ AttributeEncoder::encodeColorsLift(
 
     const int64_t iQuantWeight = irsqrt(weights[predictorIndex]);
     const int64_t quantWeight =
-      (weights[predictorIndex] * iQuantWeight + (1ull << 39)) >> 40;
+      (weights[predictorIndex] * iQuantWeight + (1ull << 35)) >> 36;
 
     auto& color = colors[predictorIndex];
     int values[3];
-    values[0] = quant[0].quantize(color[0] * quantWeight);
+    values[0] = quant[0].quantize(color[0] * quantWeight >> 8);
     int64_t scaled = quant[0].scale(values[0]);
-    color[0] = divExp2RoundHalfInf(scaled * iQuantWeight, 40);
+    color[0] = divExp2RoundHalfInf(scaled * iQuantWeight, 36);
 
-    values[1] = quant[1].quantize(color[1] * quantWeight);
+    values[1] = quant[1].quantize(color[1] * quantWeight >> 8);
     scaled = quant[1].scale(values[1]);
-    color[1] = divExp2RoundHalfInf(scaled * iQuantWeight, 40);
+    color[1] = divExp2RoundHalfInf(scaled * iQuantWeight, 36);
 
     color[2] -= (lastCompPredCoeff * color[1]) >> 2;
     scaled *= lastCompPredCoeff;
     scaled >>= 2;
 
-    values[2] = quant[1].quantize(color[2] * quantWeight);
+    values[2] = quant[1].quantize(color[2] * quantWeight >> 8);
     scaled += quant[1].scale(values[2]);
-    color[2] = divExp2RoundHalfInf(scaled * iQuantWeight, 40);
+    color[2] = divExp2RoundHalfInf(scaled * iQuantWeight, 36);
 
     if (!values[0] && !values[1] && !values[2])
       ++zeroRun;
@@ -1664,13 +1664,13 @@ AttributeEncoder::encodeReflectancesLift(
 
     const int64_t iQuantWeight = irsqrt(weights[predictorIndex]);
     const int64_t quantWeight =
-      (weights[predictorIndex] * iQuantWeight + (1ull << 39)) >> 40;
+      (weights[predictorIndex] * iQuantWeight + (1ull << 35)) >> 36;
 
     auto& reflectance = reflectances[predictorIndex];
-    const int64_t delta = quant[0].quantize(reflectance * quantWeight);
+    const int64_t delta = quant[0].quantize(reflectance * quantWeight >> 8);
     const auto detail = delta;
     const int64_t reconstructedDelta = quant[0].scale(delta);
-    reflectance = divExp2RoundHalfInf(reconstructedDelta * iQuantWeight, 40);
+    reflectance = divExp2RoundHalfInf(reconstructedDelta * iQuantWeight, 36);
     if (!detail)
       ++zeroRun;
     else {

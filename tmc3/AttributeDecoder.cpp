@@ -795,16 +795,16 @@ AttributeDecoder::decodeColorsLift(
     auto& color = colors[predictorIndex];
 
     int64_t scaled = quant[0].scale(values[0]);
-    color[0] = divExp2RoundHalfInf(scaled * iQuantWeight, 40);
+    color[0] = divExp2RoundHalfInf(scaled * iQuantWeight, 36);
 
     scaled = quant[1].scale(values[1]);
-    color[1] = divExp2RoundHalfInf(scaled * iQuantWeight, 40);
+    color[1] = divExp2RoundHalfInf(scaled * iQuantWeight, 36);
 
     scaled *= lastCompPredCoeff;
     scaled >>= 2;
 
     scaled += quant[1].scale(values[2]);
-    color[2] = divExp2RoundHalfInf(scaled * iQuantWeight, 40);
+    color[2] = divExp2RoundHalfInf(scaled * iQuantWeight, 36);
   }
 
   // reconstruct
@@ -892,7 +892,7 @@ AttributeDecoder::decodeReflectancesLift(
     auto& reflectance = reflectances[predictorIndex];
     const int64_t delta = detail;
     const int64_t reconstructedDelta = quant[0].scale(delta);
-    reflectance = divExp2RoundHalfInf(reconstructedDelta * iQuantWeight, 40);
+    reflectance = divExp2RoundHalfInf(reconstructedDelta * iQuantWeight, 36);
   }
 
   // reconstruct
