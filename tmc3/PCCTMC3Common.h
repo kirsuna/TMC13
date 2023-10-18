@@ -921,6 +921,94 @@ computeQuantizationWeights(
 }
 
 //---------------------------------------------------------------------------
+inline void
+decideNeighborWithColor(
+  const AttributeParameterSet& aps,
+  std::vector<PCCPredictor>& predictors,
+  std::vector<uint32_t>& indexes,
+  const PCCPointSet3& pointCloud,
+  const int64_t& wAttr,
+  bool interRef = false)
+{
+  const size_t pointCount = predictors.size();
+
+  for (size_t predictorIndex = 0; predictorIndex < pointCount;
+       ++predictorIndex) {
+    auto& predictor = predictors[predictorIndex];
+    const auto pointIndex = indexes[predictorIndex];
+    const Vec3<attr_t> color = pointCloud.getColor(pointIndex);
+    const auto bpoint = pointCloud[pointIndex];
+
+    for (size_t j = 0; j < predictor.neighborCount; ++j) {
+      auto pointIndex = predictor.neighbors[j].pointIndex;
+      auto predictorIndex = predictor.neighbors[j].predictorIndex;
+      const Vec3<attr_t> color0 = pointCloud.getColor(pointIndex);
+      const auto point0 = pointCloud[pointIndex];
+      auto dColor = abs(color0[0] - color[0]) + abs(color0[1] - color[1])
+        + abs(color0[2] - color[2]);
+      auto dPos = (point0 - bpoint).getNorm1();
+      dColor = (wAttr * dColor) >> 10;
+      auto d = dPos + dColor;
+      predictor.neighbors[j].weight = d;
+    }
+    if (predictor.neighborCount > 1) {
+      if (predictor.neighbors[0].weight > predictor.neighbors[1].weight)
+        std::swap(predictor.neighbors[1], predictor.neighbors[0]);
+      if (predictor.neighborCount == 3) {
+        if (predictor.neighbors[1].weight > predictor.neighbors[2].weight) {
+          std::swap(predictor.neighbors[2], predictor.neighbors[1]);
+          if (predictor.neighbors[0].weight > predictor.neighbors[1].weight)
+            std::swap(predictor.neighbors[1], predictor.neighbors[0]);
+        }
+      }
+    }
+  }
+}
+
+inline void
+decideNeighborWithRefl(
+  const AttributeParameterSet& aps,
+  std::vector<PCCPredictor>& predictors,
+  std::vector<uint32_t>& indexes,
+  const PCCPointSet3& pointCloud,
+  const int64_t& wAttr,
+  bool interRef = false)
+{
+  const size_t pointCount = predictors.size();
+
+  for (size_t predictorIndex = 0; predictorIndex < pointCount;
+       ++predictorIndex) {
+    auto& predictor = predictors[predictorIndex];
+    const auto pointIndex = indexes[predictorIndex];
+    const auto ref = pointCloud.getReflectance(pointIndex);
+    const auto bpoint = pointCloud[pointIndex];
+
+    for (size_t j = 0; j < predictor.neighborCount; ++j) {
+      auto pointIndex = predictor.neighbors[j].pointIndex;
+      auto predictorIndex = predictor.neighbors[j].predictorIndex;
+
+      const auto ref0 = pointCloud.getReflectance(pointIndex);
+      const auto point0 = pointCloud[pointIndex];
+      auto dRef = abs(ref0 - ref);
+      dRef = (wAttr * dRef) >> 10;
+      auto dPos = (point0 - bpoint).getNorm1();
+      auto d = dPos + dRef;
+      predictor.neighbors[j].weight = d;
+    }
+
+    if (predictor.neighborCount > 1) {
+      if (predictor.neighbors[0].weight > predictor.neighbors[1].weight)
+        std::swap(predictor.neighbors[1], predictor.neighbors[0]);
+      if (predictor.neighborCount == 3) {
+        if (predictor.neighbors[1].weight > predictor.neighbors[2].weight) {
+          std::swap(predictor.neighbors[2], predictor.neighbors[1]);
+          if (predictor.neighbors[0].weight > predictor.neighbors[1].weight)
+            std::swap(predictor.neighbors[1], predictor.neighbors[0]);
+        }
+      }
+    }
+  }
+}
 
 inline point_t
 clacIntermediatePosition(
@@ -2294,7 +2382,18 @@ updatePredictors(
     }
   }
 }
-
+inline void
+updatePredictorsForCross(std::vector<PCCPredictor>& predictors)
+{
+  for (auto& predictor : predictors) {
+    if (predictor.neighborCount < 2) {
+      predictor.neighbors[0].weight = 1;
+    } else if (predictor.neighbors[0].weight == 0) {
+      predictor.neighborCount = 1;
+      predictor.neighbors[0].weight = 1;
+    }
+  }
+}
 //---------------------------------------------------------------------------
 
 inline void

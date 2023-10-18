@@ -436,6 +436,8 @@ write(const SequenceParameterSet& sps)
 
   int num_attribute_sets = int(sps.attributeSets.size());
   bs.writeUe(num_attribute_sets);
+  if (num_attribute_sets > 1)
+    bs.write(sps.cross_attr_prediction_enabled_flag);
   for (const auto& attr : sps.attributeSets) {
     bs.writeUe(attr.attr_num_dimensions_minus1);
     bs.writeUe(attr.attr_instance_id);
@@ -532,6 +534,8 @@ parseSps(const PayloadBuffer& buf)
   bs.readUn(sps.global_scale_fp_bits(), &sps.global_scale_rem());
 
   int num_attribute_sets = int(bs.readUe());
+  if (num_attribute_sets > 1)
+    bs.read(&sps.cross_attr_prediction_enabled_flag);
   for (int i = 0; i < num_attribute_sets; i++) {
     sps.attributeSets.emplace_back();
     auto& attr = sps.attributeSets.back();
@@ -1027,6 +1031,11 @@ write(const SequenceParameterSet& sps, const AttributeParameterSet& aps)
       }
     }
   }
+  if (sps.cross_attr_prediction_enabled_flag) {
+    bs.write(aps.cross_attr_prediction_enabled_this_type);
+    if (aps.cross_attr_prediction_enabled_this_type)
+      bs.writeUe(aps.refAttrIdx);
+  }
 
   if (aps.attr_encoding == AttributeEncoding::kPredictingTransform) {
     bs.writeUe(aps.max_num_direct_predictors);
@@ -1124,7 +1133,7 @@ write(const SequenceParameterSet& sps, const AttributeParameterSet& aps)
 //----------------------------------------------------------------------------
 
 AttributeParameterSet
-parseAps(const PayloadBuffer& buf)
+parseAps(const PayloadBuffer& buf, const SequenceParameterSet& sps)
 {
   AttributeParameterSet aps;
   assert(buf.type == PayloadType::kAttributeParameterSet);
@@ -1188,6 +1197,12 @@ parseAps(const PayloadBuffer& buf)
   aps.pred_weight_blending_enabled_flag = false;
   aps.intra_lod_prediction_skip_layers = aps.kSkipAllLayers;
   aps.quant_neigh_weight = 0;
+
+  if (sps.cross_attr_prediction_enabled_flag) {
+    bs.read(&aps.cross_attr_prediction_enabled_this_type);
+    if (aps.cross_attr_prediction_enabled_this_type)
+      bs.readUe(&aps.refAttrIdx);
+  }
   if (aps.attr_encoding == AttributeEncoding::kPredictingTransform) {
     bs.readUe(&aps.max_num_direct_predictors);
     aps.adaptive_prediction_threshold = 0;

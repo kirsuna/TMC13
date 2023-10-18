@@ -432,6 +432,8 @@ struct SequenceParameterSet {
 
   // Indicates that context state may be propagated between frames.
   bool inter_entropy_continuation_enabled_flag;
+  bool cross_attr_prediction_enabled_flag;
+  bool attr_multi_encoded_order;
 };
 
 //============================================================================
@@ -824,6 +826,8 @@ struct AttributeParameterSet {
   bool inter_component_prediction_enabled_flag;
   bool last_component_prediction_enabled_flag;
 
+  bool cross_attr_prediction_enabled_this_type;  //<< cross attr type
+  int refAttrIdx;
   // Whether prediction weights are blended according to spatial positions
   bool pred_weight_blending_enabled_flag;
 

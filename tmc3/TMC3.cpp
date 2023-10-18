@@ -833,6 +833,17 @@ ParseParameters(int argc, char* argv[], Parameters& params)
   ("disableAttributeCoding",
     params.disableAttributeCoding, false,
     "Ignore attribute coding configuration")
+ 
+   ("cross_attr_prediction_enabled_flag",
+    params.encoder.sps.cross_attr_prediction_enabled_flag,true,
+    "Encode attribute with cross-atribute prediction"
+    )
+   
+    ("attrMultiEncodedOrder",
+    params.encoder.sps.attr_multi_encoded_order,false,
+    "Attribute encode order in multi-attribute sequences"
+    "false:color then reflectance, true: reflectance then color"
+    )
 
   ("enforceLevelLimits",
     params.encoder.enforceLevelLimits, true,
@@ -1356,6 +1367,17 @@ ParseParameters(int argc, char* argv[], Parameters& params)
     " 1: periodic subsampling using lodSamplingPeriod\n"
     " 2: centroid subsampling using lodSamplingPeriod")
 
+    ("cross_attr_prediction_enabled_this_type",
+    params_attr.aps.cross_attr_prediction_enabled_this_type,false,
+    "Use the encoded attribute type to predict the currently to be encoded attribute"
+    )
+
+   ("refAttrIdx",
+    params_attr.aps.refAttrIdx, -1,
+    "The encoded attribute index of the attribute type to be used for "
+    "cross-attribute prediction(-1 => disabled)"
+      )
+
   ("max_num_direct_predictors",
     params_attr.aps.max_num_direct_predictors, 3,
     "Maximum number of nearest neighbour candidates used in direct"
@@ -1603,13 +1625,48 @@ ParseParameters(int argc, char* argv[], Parameters& params)
     po::dumpCfg(cout, opts, "Geometry", 4);
     po::dumpCfg(cout, opts, "Recolouring", 4);
 
-    for (const auto& it : params.encoder.attributeIdxMap) {
-      // NB: when dumping the config, opts references params_attr
-      params_attr.desc = params.encoder.sps.attributeSets[it.second];
-      params_attr.aps = params.encoder.aps[it.second];
-      params_attr.encoder = params.encoder.attr[it.second];
-      cout << "    " << it.first << "\n";
-      po::dumpCfg(cout, opts, "Attributes", 8);
+    int codeAttrNum = 0;
+    if (
+      !params.encoder.sps.attr_multi_encoded_order
+      || !params.encoder.sps.cross_attr_prediction_enabled_flag) {
+      for (const auto& it : params.encoder.attributeIdxMap) {
+        // NB: when dumping the config, opts references params_attr
+        int attrIdx = it.second;
+        params_attr.desc = params.encoder.sps.attributeSets[attrIdx];
+        params_attr.aps = params.encoder.aps[attrIdx];
+        params_attr.encoder = params.encoder.attr[attrIdx];
+        cout << "    " << it.first << "\n";
+        po::dumpCfg(cout, opts, "Attributes", 8);
+        bool isEnableCrossAttrTypePred =
+          params.encoder.sps.cross_attr_prediction_enabled_flag
+          && codeAttrNum;
+        params.encoder.aps[attrIdx].cross_attr_prediction_enabled_this_type =
+          isEnableCrossAttrTypePred;
+        params.encoder.aps[attrIdx].refAttrIdx = -1;
+        if (isEnableCrossAttrTypePred)
+          params.encoder.aps[attrIdx].refAttrIdx = codeAttrNum - 1;
+        codeAttrNum++;
+      }
+    } else {
+      for (auto it = params.encoder.attributeIdxMap.rbegin();
+           it != params.encoder.attributeIdxMap.rend(); ++it) {
+        // NB: when dumping the config, opts references params_attr
+        int attrIdx = it->second;
+        params_attr.desc = params.encoder.sps.attributeSets[attrIdx];
+        params_attr.aps = params.encoder.aps[attrIdx];
+        params_attr.encoder = params.encoder.attr[attrIdx];
+        cout << "    " << it->first << "\n";
+        po::dumpCfg(cout, opts, "Attributes", 8);
+        bool isEnableCrossAttrTypePred =
+          params.encoder.sps.cross_attr_prediction_enabled_flag
+          && codeAttrNum;
+        params.encoder.aps[attrIdx].cross_attr_prediction_enabled_this_type =
+          isEnableCrossAttrTypePred;
+        params.encoder.aps[attrIdx].refAttrIdx = -1;
+        if (isEnableCrossAttrTypePred)
+          params.encoder.aps[attrIdx].refAttrIdx = codeAttrNum - 1;
+        codeAttrNum++;
+      }
     }
   }
 

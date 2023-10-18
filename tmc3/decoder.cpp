@@ -361,7 +361,7 @@ PCCTMC3Decoder3::decompress(
   }
 
   case PayloadType::kAttributeParameterSet: {
-    auto aps = parseAps(*buf);
+    auto aps = parseAps(*buf,*_sps);
     // HACK: assume that an SPS has been received prior to the APS.
     // This is not required, and parsing of the APS is independent of the SPS.
     // todo(df): move APS fixup to activation process

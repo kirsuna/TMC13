@@ -72,7 +72,8 @@ PayloadBuffer write(const UserData& ud);
 
 SequenceParameterSet parseSps(const PayloadBuffer& buf);
 GeometryParameterSet parseGps(const PayloadBuffer& buf);
-AttributeParameterSet parseAps(const PayloadBuffer& buf);
+AttributeParameterSet
+parseAps(const PayloadBuffer& buf, const SequenceParameterSet& sps);
 TileInventory parseTileInventory(const PayloadBuffer& buf);
 FrameBoundaryMarker parseFrameBoundaryMarker(const PayloadBuffer& buf);
 UserData parseUserData(const PayloadBuffer& buf);

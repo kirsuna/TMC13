@@ -215,10 +215,69 @@ AttributeDecoder::decode(
   PCCResidualsDecoder decoder(abh, ctxtMem);
   decoder.start(sps, payload, payloadLen);
 
+  bool isEnableCrossTypePred = (sps.attributeSets.size() == 1)
+    ? 0
+    : attr_aps.cross_attr_prediction_enabled_this_type;
+  bool isColor;
+  if (attr_aps.refAttrIdx != -1 && isEnableCrossTypePred)
+   isColor = (attr_aps.aps_attr_parameter_set_id == 1);
+
+  int maxPos = 1;
+  int maxR = 1;
+  int maxC = 1;
+  int64_t wAttr = 0;
+
+  if (attr_aps.lodParametersPresent() && isEnableCrossTypePred) {
+    auto bbox = pointCloud.computeBoundingBox();
+    int comMaxPos = bbox.max[0] + bbox.max[1] + bbox.max[2] - bbox.min[0]
+      - bbox.min[1] - bbox.min[2];
+    maxPos = comMaxPos;
+    const int64_t clipMax = (1ll << attr_desc.bitdepth) - 1;
+    maxR = clipMax;
+    maxC = clipMax * 3;
+   
+    if (!isColor) {
+      int QP = attr_aps.init_qp_minus4 + 4;
+      int64_t lambda = 1939 - 33 * QP;
+      wAttr = round((lambda * (maxPos << 10) / maxC) >> 12);
+
+    } else if (isColor) {
+      int QP = attr_aps.init_qp_minus4 + 4;
+      int64_t lambda = 4011 - 67 * QP;
+      wAttr = round((lambda * (maxPos << 10) / maxR) >> 15);
+    }
+  }
   // generate LoDs if necessary
   if (attr_aps.lodParametersPresent() && _lods.empty())
     _lods.generate(
       attr_aps, abh, geom_num_points_minus1, minGeomNodeSizeLog2, pointCloud, attrInterPredParams);
+
+  if (isEnableCrossTypePred && !isColor && !_lods.empty()) {
+    decideNeighborWithColor(
+      attr_aps, _lods.predictors, _lods.indexes, pointCloud, wAttr);
+
+    updatePredictorsForCross(_lods.predictors);
+    for (auto& predictor : _lods.predictors) {
+      predictor.computeWeights();
+      if (attr_aps.attr_encoding == AttributeEncoding::kPredictingTransform)
+        if (attr_aps.pred_weight_blending_enabled_flag)
+          predictor.blendWeights(
+            pointCloud, _lods.indexes, attrInterPredParams);
+    }
+  } else if (isEnableCrossTypePred && isColor && !_lods.empty()) {
+    decideNeighborWithRefl(
+      attr_aps, _lods.predictors, _lods.indexes, pointCloud, wAttr);
+
+    updatePredictorsForCross(_lods.predictors);
+
+    for (auto& predictor : _lods.predictors) {
+      predictor.computeWeights();
+      if (attr_aps.attr_encoding == AttributeEncoding::kPredictingTransform)
+        if (attr_aps.pred_weight_blending_enabled_flag)
+          predictor.blendWeights(
+            pointCloud, _lods.indexes, attrInterPredParams);
+    }
+  }
 
   if (attr_desc.attr_num_dimensions_minus1 == 0) {
     switch (attr_aps.attr_encoding) {
