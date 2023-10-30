@@ -1303,6 +1303,11 @@ uraht_process(
       int64_t recResidueFilterTap = divExp2RoundHalfUp(q.scale(attrInterPredParams.paramsForInterRAHT.FilterTaps[idxtoread]), kFixedPointAttributeShift);
       interFilterTap = 128 - recResidueFilterTap;
     }
+    double distinter=0;
+    double distintra=0;
+    FixedPoint origsamples[3][8]={};
+    
+    double dlambda = 1.0;
     for (int i = 0, j = 0, iLast, jLast, iEnd = weightsLf.size(), jEnd = weightsLf_ref.size(); i < iEnd; i = iLast) {
       // todo(df): hoist and dynamically allocate
       FixedPoint transformBuf[6][8] = {};
@@ -1549,7 +1554,11 @@ uraht_process(
       }
 
       if (isEncoder && curLevelEnableACInterPred)
+      {
         std::copy_n(&transformBuf[0][0], 8 * numAttrs, &transformIntraBuf[0][0]);
+        std::copy_n(&transformBuf[0][0], 8 * numAttrs, &origsamples[0][0]);
+      }
+        
 
       // per-coefficient operations:
       //  - subtract transform domain prediction (encoder)
@@ -1615,6 +1624,7 @@ uraht_process(
             }
           }
           const int64_t lambda = lambda0 * lambda0 * (numAttrs == 1 ? 25 : 35);
+          dlambda = (double) lambda;
           if (sumCoeff < 3) {
             int Rate = LUTbins[trainZeros > 10 ? 10 : trainZeros];
             if (trainZeros > 10) {
@@ -1691,16 +1701,27 @@ uraht_process(
             if (intraFlagRDOQ)  // apply RDOQ
               transformIntraBuf[k][idx].val = 0;
             auto coeff = transformBuf[k][idx].round();
+            int64_t iresidueinter = 0; int64_t iresidueintra = 0;
+            
             assert(coeff <= INT_MAX && coeff >= INT_MIN);
             coeff = q.quantize(coeff << kFixedPointAttributeShift);
 
             //DC inter prediction at encoder
             auto coeff_tmp = coeff;
+            
             if (curLevelEnableACInterPred)
               curEstimate.updateCostBits(coeff, k);
             *coeffBufItK[k]++ = coeff;
             transformPredBuf[k][idx] += divExp2RoundHalfUp(
               q.scale(coeff_tmp), kFixedPointAttributeShift);
+            
+            FixedPoint fInterResidue, fIntraResidue;
+            fInterResidue.val = origsamples[k][idx].val - transformPredBuf[k][idx].val;
+            iresidueinter = fInterResidue.round();
+            
+            
+            int64_t reconintra=0;
+            
             if (curLevelEnableACInterPred)
               curEstimate.resStatUpdate(coeff, k);
             if (curLevelEnableACInterPred) {  //< estimate
@@ -1713,6 +1734,16 @@ uraht_process(
               transformIntraPredBuf[k][idx] += divExp2RoundHalfUp(
                 q.scale(intraCoeff), kFixedPointAttributeShift);
               intraEstimate.resStatUpdate(intraCoeff, k);
+              
+              fIntraResidue.val = origsamples[k][idx].val - transformIntraPredBuf[k][idx].val;
+              iresidueintra = fIntraResidue.round();
+              
+              
+              int64_t idistinter = (iresidueinter)*(iresidueinter);
+              int64_t idistintra = (iresidueintra)*(iresidueintra);
+              distinter += (double)idistinter; distintra += (double)idistintra;
+
+              
             }
           } else {
             int64_t coeff = *coeffBufItK[k]++;
@@ -1811,7 +1842,14 @@ uraht_process(
     if (isEncoder && curLevelEnableACInterPred) {
       double curCost = curEstimate.costBits();
       double intraCost = intraEstimate.costBits();
-      if (intraCost < curCost) {
+      int64_t ifactor = 1<<24;
+      double dfactor = (double) (ifactor);
+      double rdcostinter = distinter*dfactor + dlambda*curCost;
+      double rdcostintra = distintra*dfactor + dlambda*intraCost;
+      bool newdecision = rdcostintra < rdcostinter;
+      
+      if (newdecision) {
+        
         for (int k = 0; k < numAttrs; ++k)
           std::copy_n(intraCoeffBufItBeginK[k], sumNodes, coeffBufItBeginK[k]);
         std::swap(intraAttrRec, attrRec);
