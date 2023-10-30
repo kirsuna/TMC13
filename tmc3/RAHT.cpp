@@ -852,10 +852,12 @@ estimate_layer_filter(
   const std::vector<UrahtNode>& weightsLf_ref,
   const std::vector<int>& attrsLf,
   const std::vector<int>& attrsLf_ref,
+  const std::vector<int64_t>& attrRecParentUs,
   int level, int level_ref, int numAttrs, bool inheritDc,  bool rahtExtension
 ){
   int64_t autocorr = 0, crosscorr = 0;
   int layerFilter = 128;
+  int pit=0;
   for (int i = 0, j = 0, iLast, jLast, iEnd = weightsLf.size(), jEnd = weightsLf_ref.size(); i < iEnd; i = iLast) {
     FixedPoint transformBuf[6][8] = {};
     FixedPoint transformInterPredBuf[3][8] = {};
@@ -863,7 +865,15 @@ estimate_layer_filter(
     Qps nodeQp[8] = {};
     uint8_t occupancy = 0;
     int nodeCnt = 0;
-    
+    int64_t InheritedDCs[3]={};
+    for(int k=0; k<numAttrs; k++)
+    {
+      if(inheritDc)
+      {
+        InheritedDCs[k]= attrRecParentUs[pit];
+        pit++;
+      }
+    }
     int weights_ref[8 + 8 + 8 + 8] = {};
     bool interNode = false;
     
@@ -950,19 +960,35 @@ estimate_layer_filter(
     }
     
     if (interNode) {
+      
       fwdTransformBlock222<RahtKernel>(numAttrs, transformBuf, weights);
       fwdTransformBlock222<RahtKernel>(numAttrs, transformInterPredBuf, weights_ref);
-      scanBlock(weights, [&](int idx) {
-        if (inheritDc && !idx)
-          return;
-        
-        int shiftbits = transformBuf[0][idx].kFracBits;
-        int64_t refVal = transformInterPredBuf[0][idx].val;
-        if (refVal) {
-          autocorr += (refVal*refVal) >> shiftbits;
-          crosscorr += (refVal*transformBuf[0][idx].val) >> shiftbits;
+      
+      int64_t curinheritDC = (inheritDc)? InheritedDCs[0]: 0;
+      int64_t interDC= transformInterPredBuf[0][0].val;
+      if(curinheritDC>0 && (interDC>0)){
+        bool condition1= 10*interDC < ((curinheritDC)*5);
+        bool condition2= 10*interDC > ((curinheritDC)*20);
+        if(condition1 || condition2){
+          interNode =false;
         }
-      });
+      }
+      
+      if(interNode)
+      {
+        scanBlock(weights, [&](int idx) {
+          if (inheritDc && !idx)
+            return;
+          
+          int shiftbits = transformBuf[0][idx].kFracBits;
+          int64_t refVal = transformInterPredBuf[0][idx].val;
+          if (refVal) {
+            autocorr += (refVal*refVal) >> shiftbits;
+            crosscorr += (refVal*transformBuf[0][idx].val) >> shiftbits;
+          }
+        });
+      }
+      
     }
   }
   if (autocorr) {
@@ -1283,8 +1309,8 @@ uraht_process(
     bool enableEstimateLayer = enableFilterEstimation && enableACInterPred && (treeDepth<treeDepthLimit) && (treeDepth >= skipInitLayersForFiltering ) ;
     //begin filter estimation at encoder
     if (isEncoder && enableEstimateLayer ) {
-      
-      int origFilterTap =  estimate_layer_filter (weightsLf, weightsLf_ref,  attrsLf,attrsLf_ref, level, level_ref, numAttrs, inheritDc,  rahtExtension  );
+      int origFilterTap =  estimate_layer_filter (weightsLf, weightsLf_ref,  attrsLf,attrsLf_ref, attrRecParentUs, level, level_ref, numAttrs, inheritDc,  rahtExtension  );
+      attrRecParentUsIt = attrRecParentUs.cbegin();
       int residueFilterTap = 128 - origFilterTap;
       auto quantizers = qpset.quantizers(qpLayer, {0,0});
       auto& q = quantizers[0];
@@ -1442,7 +1468,7 @@ uraht_process(
         weightsParentIt++;
         numGrandParentNeighIt++;
       }
-
+      bool saveenablePrediction = enablePrediction;
       bool enableIntraPrediction =
         curLevelEnableACInterPred && enablePrediction;
       bool enableInterPrediction = curLevelEnableACInterPred;
@@ -1464,8 +1490,8 @@ uraht_process(
             }
           }
         }
-        if (!isEncoder)
-          enablePrediction = false;
+        //if (!isEncoder)
+          //enablePrediction = false;
       }
 
 
@@ -1536,19 +1562,39 @@ uraht_process(
           fwdTransformBlock222<RahtKernel>(numAttrs, transformBuf, weights);
         else if (enablePrediction)
           fwdTransformBlock222<RahtKernel>(numAttrs, transformPredBuf, weights);
-
+        
         if (interNode) {
+          
           fwdTransformBlock222<RahtKernel>(numAttrs, transformInterPredBuf, weights_ref);
-          for (int childIdx = 0; childIdx < 8; childIdx++) {
-            for (int k = 0; k < numAttrs; k++){
-              int64_t refVal = transformInterPredBuf[k][childIdx].val;
-              int64_t filteredVal = (treeDepth<skipInitLayersForFiltering) ? refVal : (refVal*interFilterTap)>>7;
-              transformPredBuf[k][childIdx].val = filteredVal;
+          
+          int64_t curinheritDC = (inheritDc)? *attrRecParentUsIt: 0;
+          int64_t interDC= transformInterPredBuf[0][0].val;
+          
+          if(curinheritDC>0 && (interDC>0)){
+            bool condition1= 10*interDC < ((curinheritDC)*5);
+            bool condition2= 10*interDC > ((curinheritDC)*20);
+            if(condition1 || condition2){
+              interNode =false;
             }
           }
-          enablePrediction = true;
+          
+          if(interNode)
+          {
+            for (int childIdx = 0; childIdx < 8; childIdx++) {
+              for (int k = 0; k < numAttrs; k++){
+                int64_t refVal = transformInterPredBuf[k][childIdx].val;
+                int64_t filteredVal = (treeDepth<skipInitLayersForFiltering) ? refVal : (refVal*interFilterTap)>>7;
+                transformPredBuf[k][childIdx].val = filteredVal;
+              }
+            }
+            enablePrediction = true;
+          }
+          else{
+            enablePrediction = saveenablePrediction;
+          }
+          
         }
-
+        
         if (isEncoder && enableIntraPrediction)
           fwdTransformBlock222<RahtKernel>(numAttrs, transformIntraPredBuf, weights);
       }
