@@ -675,8 +675,6 @@ write(const SequenceParameterSet& sps, const GeometryParameterSet& gps)
       int geom_angular_num_phi_per_turn0_minus1 =
         gps.angularNumPhiPerTurn[0] - 1;
       bs.writeUe(geom_angular_num_phi_per_turn0_minus1);
-
-      bs.write(gps.geom_z_compensation_enabled_flag);
     }
 
     for (int i = 1; i <= geom_angular_num_lidar_lasers_minus1; i++) {
@@ -696,9 +694,6 @@ write(const SequenceParameterSet& sps, const GeometryParameterSet& gps)
 
     if (gps.geom_planar_mode_enabled_flag)
       bs.write(gps.planar_buffer_disabled_flag);
-    bs.write(gps.geom_inter_idcm_enabled_flag);
-    if (gps.geom_inter_idcm_enabled_flag)
-      bs.write(gps.one_point_alone_laser_beam_flag);
   }
 
   bs.write(gps.geom_scaling_enabled_flag);
@@ -761,6 +756,14 @@ write(const SequenceParameterSet& sps, const GeometryParameterSet& gps)
 
     if (!gps.predgeom_enabled_flag && gps.geom_planar_mode_enabled_flag)
       bs.write(gps.geom_multiple_planar_mode_enable_flag);
+
+    if (gps.geom_angular_mode_enabled_flag) {
+      if (!gps.predgeom_enabled_flag) 
+        bs.write(gps.geom_z_compensation_enabled_flag);
+      bs.write(gps.geom_inter_idcm_enabled_flag);
+      if (gps.geom_inter_idcm_enabled_flag)
+        bs.write(gps.one_point_alone_laser_beam_flag);
+    }
   }
   bs.byteAlign();
 
@@ -856,7 +859,6 @@ parseGps(const PayloadBuffer& buf)
       bs.readUe(&geom_angular_num_phi_per_turn0_minus1);
       gps.angularNumPhiPerTurn[0] = geom_angular_num_phi_per_turn0_minus1 + 1;
 
-      bs.read(&gps.geom_z_compensation_enabled_flag);
     }
 
     for (int i = 1; i <= geom_angular_num_lidar_lasers_minus1; i++) {
@@ -880,10 +882,6 @@ parseGps(const PayloadBuffer& buf)
 
     if (gps.geom_planar_mode_enabled_flag)
       bs.read(&gps.planar_buffer_disabled_flag);
-
-    bs.read(&gps.geom_inter_idcm_enabled_flag);
-    if (gps.geom_inter_idcm_enabled_flag)
-      bs.read(&gps.one_point_alone_laser_beam_flag);
   }
 
   gps.geom_base_qp = 0;
@@ -962,6 +960,14 @@ parseGps(const PayloadBuffer& buf)
 
     if (!gps.predgeom_enabled_flag && gps.geom_planar_mode_enabled_flag)
       bs.read(&gps.geom_multiple_planar_mode_enable_flag);
+
+    if (gps.geom_angular_mode_enabled_flag) {
+      if (!gps.predgeom_enabled_flag)
+        bs.read(&gps.geom_z_compensation_enabled_flag);
+      bs.read(&gps.geom_inter_idcm_enabled_flag);
+      if (gps.geom_inter_idcm_enabled_flag)
+        bs.read(&gps.one_point_alone_laser_beam_flag);
+    }
   }
   bs.byteAlign();
 
