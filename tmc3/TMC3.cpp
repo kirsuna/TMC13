@@ -2518,6 +2518,8 @@ SequenceCodec::outputScale(const CloudFrame& frame) const
     // The scaling converts from the frame's unit length to configured output.
     // In terms of specification this is the external coordinate system.
     return frame.outputUnitLength / params->outputUnitLength;
+
+  default: throw std::runtime_error("Unexpected value for OutputSystem");
   }
 }
 
@@ -2530,6 +2532,8 @@ SequenceCodec::outputOrigin(const CloudFrame& frame) const
   case OutputSystem::kConformance: return 0.;
 
   case OutputSystem::kExternal: return frame.outputOrigin * outputScale(frame);
+
+  default: throw std::runtime_error("Unexpected value for OutputSystem");
   }
 }
 
