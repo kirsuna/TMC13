@@ -974,8 +974,8 @@ AttributeEncoder::decidePredModeColor(
   auto attrDistortion =
     computeColorDistortions(desc, attrValue, attrPred, quant);
 
-  double rate = encoder.bitsPtColor(attrResidualQuant, 0);
-  double best_score = attrDistortion
+  float rate = encoder.bitsPtColor(attrResidualQuant, 0);
+  float best_score = attrDistortion
     + rate * kAttrPredLambdaC
       * (quant[0].stepSize() >> kFixedPointAttributeShift);
 
@@ -990,8 +990,8 @@ AttributeEncoder::decidePredModeColor(
     attrDistortion = computeColorDistortions(desc, attrValue, attrPred, quant);
 
     int sigIdx = i + !aps.direct_avg_predictor_disabled_flag;
-    double rate = encoder.bitsPtColor(attrResidualQuant, sigIdx);
-    double score = attrDistortion
+    float rate = encoder.bitsPtColor(attrResidualQuant, sigIdx);
+    float score = attrDistortion
       + rate * kAttrPredLambdaC
         * (quant[0].stepSize() >> kFixedPointAttributeShift);
 
