@@ -793,6 +793,10 @@ ParseParameters(int argc, char* argv[], Parameters& params)
     "  This is compatible with partitionMethod 2 and 4, but sliceMaxPoints\n"
     "  may be exceeded.")
 
+  ("paddingForTrisoupPartitionning",
+    params.encoder.trisoup.padding, true,
+    "Aligns trisoup vertices on slice boundaries")
+
   ("partitionOctreeDepth",
     params.encoder.partition.octreeDepth, 1,
     "Depth of octree partition for partitionMethod=4")

@@ -46,42 +46,12 @@ namespace pcc {
 
 //============================================================================
 
-void
-encodeGeometryTrisoup(
-  const TrisoupEncOpts& opt,
-  const OctreeEncOpts& optOctree,
-  const GeometryParameterSet& gps,
-  GeometryBrickHeader& gbh,
-  PCCPointSet3& pointCloud,
+void paddingToNodes(
+  std::vector<PCCOctree3Node>& nodesPadded,
+  std::vector<int>& indices,
   PCCPointSet3& pointCloudPadding,
-  GeometryOctreeContexts& ctxtMemOctree,
-  std::vector<std::unique_ptr<EntropyEncoder>>& arithmeticEncoders,
-  const CloudFrame& refFrame,
-  const SequenceParameterSet& sps,
-  const InterGeomEncOpts& interParams)
+  int blockWidth)
 {
-  // trisoup uses octree coding until reaching the triangulation level.
-  pcc::ringbuf<PCCOctree3Node> nodes;
-
-  BiPredictionEncodeParams biPredEncodeParams;
-  
-  int blockWidth = 1 << gbh.trisoupNodeSizeLog2(gps);
-
-  // Partition padding into nodes
-  Box3<int32_t> box = pointCloud.computeBoundingBox();
-  Box3<int32_t> boxP = pointCloudPadding.computeBoundingBox();
-
-  Vec3<int32_t> min = {0};
-  Vec3<int32_t> max = {0};
-
-  max[0] += (box.max[0] % blockWidth == 0 ? box.max[0] + 16 : box.max[0] + (blockWidth - box.max[0] % blockWidth));
-  max[1] += (box.max[1] % blockWidth == 0 ? box.max[1] + 16 : box.max[1] + (blockWidth - box.max[1] % blockWidth));
-  max[2] += (box.max[2] % blockWidth == 0 ? box.max[2] + 16 : box.max[2] + (blockWidth - box.max[2] % blockWidth));
-
-  Box3<int32_t> originalBox = Box3<int32_t>(min, max);
-
-  std::vector<PCCOctree3Node> nodesPadded;
-  std::vector<int> indices(pointCloudPadding.getPointCount());
   if (pointCloudPadding.getPointCount() != 0) {
     std::iota(indices.begin(), indices.end(), 0);
     std::vector<Vec3<int>> mapping(pointCloudPadding.getPointCount());
@@ -110,7 +80,35 @@ encodeGeometryTrisoup(
       }
     }
   }
-  // End: Partition padding into nodes
+}
+
+void
+encodeGeometryTrisoup(
+  const TrisoupEncOpts& opt,
+  const OctreeEncOpts& optOctree,
+  const GeometryParameterSet& gps,
+  GeometryBrickHeader& gbh,
+  PCCPointSet3& pointCloud,
+  PCCPointSet3& pointCloudPadding,
+  GeometryOctreeContexts& ctxtMemOctree,
+  std::vector<std::unique_ptr<EntropyEncoder>>& arithmeticEncoders,
+  const CloudFrame& refFrame,
+  const SequenceParameterSet& sps,
+  const InterGeomEncOpts& interParams)
+{
+  // trisoup uses octree coding until reaching the triangulation level.
+  pcc::ringbuf<PCCOctree3Node> nodes;
+
+  BiPredictionEncodeParams biPredEncodeParams;
+  
+  int blockWidth = 1 << gbh.trisoupNodeSizeLog2(gps);
+
+  // Partition padding into nodes
+  std::vector<PCCOctree3Node> nodesPadded;
+  std::vector<int> indices(pointCloudPadding.getPointCount());
+  if (opt.padding){
+    paddingToNodes(nodesPadded, indices, pointCloudPadding, blockWidth);
+  }
 
   encodeGeometryOctree(
     optOctree, gps, gbh, pointCloud, ctxtMemOctree, arithmeticEncoders, &nodes,
@@ -160,7 +158,7 @@ encodeGeometryTrisoup(
     gps, gbh,
     blockWidth, bitDropped, eVerts,
     distanceSearchEncoder, nodesPadded, pointCloudPadding, indices,
-    originalBox, estimatedSampling, opt.nodeUniqueDSE);
+    estimatedSampling, opt.nodeUniqueDSE);
 
   // Determine neighbours
   std::vector<uint16_t> neighbNodes;
@@ -347,7 +345,6 @@ determineTrisoupVertices(
   const std::vector<PCCOctree3Node>& nodesPadded,
   const PCCPointSet3& pointCloudPadding,
   std::vector<int> indices,
-  Box3<int32_t> originalBox,
   float estimatedSampling,
   bool nodeUniqueDSE)
 {
@@ -360,7 +357,7 @@ determineTrisoupVertices(
     gps, gbh, leaves, defaultBlockWidth, bitDropped, false, pointCloud,
     distanceSearchEncoder, neighbNodes, edgePattern, arithmeticDecoder,
     eVerts, segind, vertices, nodesPadded, pointCloudPadding, indices,
-    originalBox, estimatedSampling, nodeUniqueDSE);
+    estimatedSampling, nodeUniqueDSE);
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +391,6 @@ void processTrisoupVertices(
   const std::vector<PCCOctree3Node>& nodesPadded,
   const PCCPointSet3& pointCloudPadding,
   std::vector<int> indices,
-  Box3<int32_t> originalBox,
   float estimatedSampling,
   bool nodeUniqueDSE)
 {
@@ -682,7 +678,7 @@ void processTrisoupVertices(
               << (10 - bitDropped))
             / (2 * localSegment.count + localSegment.count2);
           int8_t vertex = (temp + (1 << 9 - bitDropped)) >> 10;
-          vertices.push_back(vertex);
+          vertices.push_back(std::max((int8_t)0, vertex));
         }
         localSegment = *it;  // unique segment
       } else {

@@ -363,6 +363,7 @@ struct OctreeEncOpts {
 struct TrisoupEncOpts {
   bool improvedVertexDetermination;
   bool nodeUniqueDSE;
+  bool padding;
 };
 
 //----------------------------------------------------------------------------

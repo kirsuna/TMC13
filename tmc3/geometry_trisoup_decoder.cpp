@@ -1284,12 +1284,10 @@ void decodeTrisoupVertices(
   std::vector<PCCOctree3Node> nodesPadded;
   PCCPointSet3 pointCloudPadding;
   std::vector<int> indices;
-  Box3<int32_t> originalBox;
   processTrisoupVertices(
     gps, gbh, leaves, defaultBlockWidth, bitDropped, true, dummyPointCloud,
     dummyDistanceSearchEncoder, neighbNodes, edgePattern, arithmeticDecoder,
-    eVerts, segind, vertices, nodesPadded, pointCloudPadding, indices,
-    originalBox);
+    eVerts, segind, vertices, nodesPadded, pointCloudPadding, indices);
 }
 
 // ---------------------------------------------------------------------------
