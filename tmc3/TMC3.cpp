@@ -1624,7 +1624,8 @@ ParseParameters(int argc, char* argv[], Parameters& params)
     po::dumpCfg(cout, opts, "Encoder", 4);
     po::dumpCfg(cout, opts, "Geometry", 4);
     po::dumpCfg(cout, opts, "Recolouring", 4);
-
+    if (params.encoder.sps.attributeSets.size() < 2)
+      params.encoder.sps.cross_attr_prediction_enabled_flag = false;
     int codeAttrNum = 0;
     if (
       !params.encoder.sps.attr_multi_encoded_order

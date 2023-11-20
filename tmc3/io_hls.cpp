@@ -532,7 +532,7 @@ parseSps(const PayloadBuffer& buf)
   bs.readUe(&sps.global_scale_mul_log2());
   bs.readUe(&sps.global_scale_fp_bits());
   bs.readUn(sps.global_scale_fp_bits(), &sps.global_scale_rem());
-
+  sps.cross_attr_prediction_enabled_flag = false;
   int num_attribute_sets = int(bs.readUe());
   if (num_attribute_sets > 1)
     bs.read(&sps.cross_attr_prediction_enabled_flag);
