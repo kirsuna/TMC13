@@ -1353,7 +1353,14 @@ write(
       bs.writeUe(gbh.prev_slice_id);
   }
 
-  int geomBoxLog2Scale = gbh.geomBoxLog2Scale(gps);
+  int trisoupNodeSizeLog2 = 0;
+  if (gps.trisoup_enabled_flag) {
+    bs.writeUe(gbh.trisoup_node_size_log2_minus2);
+    trisoupNodeSizeLog2 = gbh.trisoup_node_size_log2_minus2 + 2;
+  }
+
+  int geomBoxLog2Scale =
+    std::max(gbh.geomBoxLog2Scale(gps), trisoupNodeSizeLog2);
   auto geom_box_origin = toXyz(sps.geometry_axis_order, gbh.geomBoxOrigin);
   geom_box_origin.x() >>= geomBoxLog2Scale;
   geom_box_origin.y() >>= geomBoxLog2Scale;
@@ -1404,7 +1411,6 @@ write(
   }
 
   if (gps.trisoup_enabled_flag) {
-    bs.writeUe(gbh.trisoup_node_size_log2_minus2);
     bs.writeUe(gbh.trisoup_sampling_value_minus1);
     bs.writeUe(gbh.num_unique_segments_bits_minus1);
     auto segmentBits = gbh.num_unique_segments_bits_minus1 + 1;
@@ -1537,6 +1543,12 @@ parseGbh(
       bs.readUe(&gbh.prev_slice_id);
   }
 
+  int trisoupNodeSizeLog2 = 0;
+  if (gps.trisoup_enabled_flag) {
+    bs.readUe(&gbh.trisoup_node_size_log2_minus2);
+    trisoupNodeSizeLog2 = gbh.trisoup_node_size_log2_minus2 + 2;
+  }
+
   if (gps.geom_box_log2_scale_present_flag)
     bs.readUe(&gbh.geom_box_log2_scale);
 
@@ -1548,7 +1560,8 @@ parseGbh(
     bs.readUn(originBits, &geom_box_origin.z());
   }
   gbh.geomBoxOrigin = fromXyz(sps.geometry_axis_order, geom_box_origin);
-  gbh.geomBoxOrigin *= 1 << gbh.geomBoxLog2Scale(gps);
+  gbh.geomBoxOrigin *=
+    1 << std::max(gbh.geomBoxLog2Scale(gps), trisoupNodeSizeLog2);
 
   if (gps.geom_slice_angular_origin_present_flag) {
     int gbh_angular_origin_bits_minus1;
@@ -1590,7 +1603,6 @@ parseGbh(
   }
 
   if (gps.trisoup_enabled_flag) {
-    bs.readUe(&gbh.trisoup_node_size_log2_minus2);
     bs.readUe(&gbh.trisoup_sampling_value_minus1);
     bs.readUe(&gbh.num_unique_segments_bits_minus1);
     auto segmentBits = gbh.num_unique_segments_bits_minus1 + 1;

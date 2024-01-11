@@ -494,51 +494,75 @@ void processTrisoupVertices(
         // parameter indicating threshold of how close voxels must be to edge
         // ----------- 1 -------------------
         // to be relevant
-        if (voxel[1] < tmin && voxel[2] < tmin) {
+        if (
+          voxel[1] < tmin && voxel[2] < tmin && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg000W00.count++;
           seg000W00.distanceSum += voxel[0];
         }  // far bottom edge
-        if (voxel[0] < tmin && voxel[2] < tmin) {
+        if (
+          voxel[0] < tmin && voxel[2] < tmin && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           seg0000W0.count++;
           seg0000W0.distanceSum += voxel[1];
         }  // far left edge
-        if (voxel[1] > tmax.y() && voxel[2] < tmin) {
+        if (
+          voxel[1] > tmax.y() && voxel[2] < tmin && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg0W0WW0.count++;
           seg0W0WW0.distanceSum += voxel[0];
         }  // far top edge
-        if (voxel[0] > tmax.x() && voxel[2] < tmin) {
+        if (
+          voxel[0] > tmax.x() && voxel[2] < tmin && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           segW00WW0.count++;
           segW00WW0.distanceSum += voxel[1];
         }  // far right edge
-        if (voxel[0] < tmin && voxel[1] < tmin) {
+        if (
+          voxel[0] < tmin && voxel[1] < tmin && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           seg00000W.count++;
           seg00000W.distanceSum += voxel[2];
         }  // bottom left edge
-        if (voxel[0] < tmin && voxel[1] > tmax.y()) {
+        if (
+          voxel[0] < tmin && voxel[1] > tmax.y() && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           seg0W00WW.count++;
           seg0W00WW.distanceSum += voxel[2];
         }  // top left edge
-        if (voxel[0] > tmax.x() && voxel[1] > tmax.y()) {
+        if (
+          voxel[0] > tmax.x() && voxel[1] > tmax.y() && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           segWW0WWW.count++;
           segWW0WWW.distanceSum += voxel[2];
         }  // top right edge
-        if (voxel[0] > tmax.x() && voxel[1] < tmin) {
+        if (
+          voxel[0] > tmax.x() && voxel[1] < tmin && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           segW00W0W.count++;
           segW00W0W.distanceSum += voxel[2];
         }  // bottom right edge
-        if (voxel[1] < tmin && voxel[2] > tmax.z()) {
+        if (
+          voxel[1] < tmin && voxel[2] > tmax.z() && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg00WW0W.count++;
           seg00WW0W.distanceSum += voxel[0];
         }  // near bottom edge
-        if (voxel[0] < tmin && voxel[2] > tmax.z()) {
+        if (
+          voxel[0] < tmin && voxel[2] > tmax.z() && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           seg00W0WW.count++;
           seg00W0WW.distanceSum += voxel[1];
         }  // near left edge
-        if (voxel[1] > tmax.y() && voxel[2] > tmax.z()) {
+        if (
+          voxel[1] > tmax.y() && voxel[2] > tmax.z() && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg0WWWWW.count++;
           seg0WWWWW.distanceSum += voxel[0];
         }  // near top edge
-        if (voxel[0] > tmax.x() && voxel[2] > tmax.z()) {
+        if (
+          voxel[0] > tmax.x() && voxel[2] > tmax.z() && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           segW0WWWW.count++;
           segW0WWWW.distanceSum += voxel[1];
         }  // near right edge
@@ -546,51 +570,75 @@ void processTrisoupVertices(
         // parameter indicating threshold of how close voxels must be to edge
         // ----------- 2 -------------------
         // to be relevant
-        if (voxel[1] < tmin2 && voxel[2] < tmin2) {
+        if (
+          voxel[1] < tmin2 && voxel[2] < tmin2 && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg000W00.count2++;
           seg000W00.distanceSum2 += voxel[0];
         }  // far bottom edge
-        if (voxel[0] < tmin2 && voxel[2] < tmin2) {
+        if (
+          voxel[0] < tmin2 && voxel[2] < tmin2 && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           seg0000W0.count2++;
           seg0000W0.distanceSum2 += voxel[1];
         }  // far left edge
-        if (voxel[1] > tmax2.y() && voxel[2] < tmin2) {
+        if (
+          voxel[1] > tmax2.y() && voxel[2] < tmin2 && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg0W0WW0.count2++;
           seg0W0WW0.distanceSum2 += voxel[0];
         }  // far top edge
-        if (voxel[0] > tmax2.x() && voxel[2] < tmin2) {
+        if (
+          voxel[0] > tmax2.x() && voxel[2] < tmin2 && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           segW00WW0.count2++;
           segW00WW0.distanceSum2 += voxel[1];
         }  // far right edge
-        if (voxel[0] < tmin2 && voxel[1] < tmin2) {
+        if (
+          voxel[0] < tmin2 && voxel[1] < tmin2 && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           seg00000W.count2++;
           seg00000W.distanceSum2 += voxel[2];
         }  // bottom left edge
-        if (voxel[0] < tmin2 && voxel[1] > tmax2.y()) {
+        if (
+          voxel[0] < tmin2 && voxel[1] > tmax2.y() && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           seg0W00WW.count2++;
           seg0W00WW.distanceSum2 += voxel[2];
         }  // top left edge
-        if (voxel[0] > tmax2.x() && voxel[1] > tmax2.y()) {
+        if (
+          voxel[0] > tmax2.x() && voxel[1] > tmax2.y() && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           segWW0WWW.count2++;
           segWW0WWW.distanceSum2 += voxel[2];
         }  // top right edge
-        if (voxel[0] > tmax2.x() && voxel[1] < tmin2) {
+        if (
+          voxel[0] > tmax2.x() && voxel[1] < tmin2 && voxel[2] >= 0
+          && voxel[2] < newW[2]) {
           segW00W0W.count2++;
           segW00W0W.distanceSum2 += voxel[2];
         }  // bottom right edge
-        if (voxel[1] < tmin2 && voxel[2] > tmax2.z()) {
+        if (
+          voxel[1] < tmin2 && voxel[2] > tmax2.z() && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg00WW0W.count2++;
           seg00WW0W.distanceSum2 += voxel[0];
         }  // near bottom edge
-        if (voxel[0] < tmin2 && voxel[2] > tmax2.z()) {
+        if (
+          voxel[0] < tmin2 && voxel[2] > tmax2.z() && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           seg00W0WW.count2++;
           seg00W0WW.distanceSum2 += voxel[1];
         }  // near left edge
-        if (voxel[1] > tmax2.y() && voxel[2] > tmax2.z()) {
+        if (
+          voxel[1] > tmax2.y() && voxel[2] > tmax2.z() && voxel[0] >= 0
+          && voxel[0] < newW[0]) {
           seg0WWWWW.count2++;
           seg0WWWWW.distanceSum2 += voxel[0];
         }  // near top edge
-        if (voxel[0] > tmax2.x() && voxel[2] > tmax2.z()) {
+        if (
+          voxel[0] > tmax2.x() && voxel[2] > tmax2.z() && voxel[1] >= 0
+          && voxel[1] < newW[1]) {
           segW0WWWW.count2++;
           segW0WWWW.distanceSum2 += voxel[1];
         }  // near right edge

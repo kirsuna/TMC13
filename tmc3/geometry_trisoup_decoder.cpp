@@ -547,6 +547,15 @@ void nonCubicNode
     neww[k] = ( ( flag_n ) && ( leafpos[k] < bbox.min[k] ) ) ?
       (blockWidth-(bbox.min[k]-leafpos[k])) :
       ( flag_f ) ? std::min(bbox.max[k]-leafpos[k]+1, blockWidth) : blockWidth;
+
+    if (neww[k] == 0) {
+      newp[k] = ((flag_n) && (leafpos[k] < bbox.min[k])) ? bbox.min[k] - 1
+                                                         : leafpos[k];
+      neww[k] = ((flag_n) && (leafpos[k] < bbox.min[k]))
+        ? (blockWidth - (bbox.min[k] - 1 - leafpos[k]))
+        : (flag_f) ? std::min(bbox.max[k] - leafpos[k] + 2, blockWidth)
+                   : blockWidth;
+    }
   }
   corner[POS_000] = {       0,       0,       0 };
   corner[POS_W00] = { neww[0],       0,       0 };

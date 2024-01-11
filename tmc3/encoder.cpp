@@ -547,6 +547,8 @@ PCCTMC3Encoder3::compress(
   //  - compress
   pcc::CloudFrame reconCloudAlt;
 
+  Box3<int32_t> bboxQPC = quantizedInput.cloud.computeBoundingBox();
+
   for (const auto& partition : partitions.slices) {
     // create partitioned point set
     PCCPointSet3 sliceCloud =
@@ -569,6 +571,14 @@ PCCTMC3Encoder3::compress(
     _sliceId = partition.sliceId;
     _tileId = partition.tileId;
     _sliceOrigin = sliceCloud.computeBoundingBox().min;
+
+    if (!params->trisoupNodeSizesLog2.empty()) {
+      int partitionBoundary = 1 << partitionBoundaryLog2;
+      for (int i = 0; i < 3; i++) {
+        _sliceOrigin[i] -=
+          (_sliceOrigin[i] - bboxQPC.min[i]) % partitionBoundary;
+      }
+    }
 
     compressPartition(
       sliceCloud, sliceSrcCloud, sliceCloudPadding, params, callback,
@@ -1329,8 +1339,17 @@ PCCTMC3Encoder3::encodeGeometryBrick(
   gbh.frame_ctr_lsb = _frameCounter & ((1 << _sps->frame_ctr_bits) - 1);
   gbh.geomBoxOrigin = _sliceOrigin;
   gbh.gbhAngularOrigin = _gps->gpsAngularOrigin - _sliceOrigin;
-  gbh.geom_box_origin_bits_minus1 = numBits(gbh.geomBoxOrigin.max()) - 1;
   gbh.geom_box_log2_scale = 0;
+
+  int trisoupNodeSizeLog2 = 0;
+  if (_gps->trisoup_enabled_flag) {
+    trisoupNodeSizeLog2 = params->gbh.trisoup_node_size_log2_minus2 + 2;
+  }
+  int geomBoxLog2Scale =
+    std::max(gbh.geomBoxLog2Scale(*_gps), trisoupNodeSizeLog2);
+  gbh.geom_box_origin_bits_minus1 =
+    numBits(gbh.geomBoxOrigin.max() >> geomBoxLog2Scale) - 1;
+
   gbh.geom_slice_qp_offset = params->gbh.geom_slice_qp_offset;
   gbh.geom_stream_cnt_minus1 = params->gbh.geom_stream_cnt_minus1;
   gbh.trisoup_node_size_log2_minus2 =
