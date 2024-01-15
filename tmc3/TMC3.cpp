@@ -1129,6 +1129,10 @@ ParseParameters(int argc, char* argv[], Parameters& params)
     params.encoder.gps.interAzimScaleLog2, 1,
     "Scale factor applied to azimuth angle during inter search")
 
+  ("maxPointsPerEntryMinus1",
+    params.encoder.gps.maxPointsPerEntryMinus1, 0,
+    "Max points per scaled azimuth entry in reference table")
+
   ("randomAccessPeriod",
     params.encoder.randomAccessPeriod, 1,
     "Distance (in pictures) between random access points when "

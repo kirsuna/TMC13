@@ -180,7 +180,7 @@ private:
 
   // The active reference frame
   const CloudFrame* _refFrame;
-  const CloudFrame* _refFrameAlt;
+  CloudFrame* _refFrameAlt;
 
   GeometryBrickHeader _gbh;
 

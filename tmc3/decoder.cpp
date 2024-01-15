@@ -637,19 +637,20 @@ PCCTMC3Decoder3::decodeGeometryBrick(const PayloadBuffer& buf)
             biPredDecodeParams._refFrameSph2.setRefFrameCtr(biPredDecodeParams._refFrameSph2.getFrameCtr() + 1);        
           }
         }
-        _refFrameSph.updateFrame(*_gps);
+        _refFrameSph.updateFrame(*_gps, *_refFrameAlt);
         if(_gbh.biPredictionEnabledFlag){
-          biPredDecodeParams._refFrameSph2.updateFrame(*_gps);
+          biPredDecodeParams._refFrameSph2.updateFrame(*_gps, *_refFrameAlt);
         }
       }
-    } 
-    
-    else {
+    }     
+    else if(_gps->interPredictionEnabledFlag) {
       if (_gps->globalMotionEnabled) {
         _refFrameSph.setFrameMovingState(_gbh.interFrameRefGmcFlag);
         _refFrameSph.setMotionParams(_gbh.gm_thresh, _gbh.gm_matrix, _gbh.gm_trans);
       }
-      _refFrameSph.updateFrame(*_gps);
+      _refFrameSph.updateFrame(
+        *_gps, *_refFrameAlt, minPos_ref,
+        _apss[0].attr_coord_scale);
     }
   }
 
@@ -753,9 +754,9 @@ PCCTMC3Decoder3::decodeGeometryBrick(const PayloadBuffer& buf)
   auto& refFrameSph = currFrameNotCodedAsB ? biPredDecodeParams._refFrameSph2 : _refFrameSph;
   auto& refPosSph = currFrameNotCodedAsB ? biPredDecodeParams._refPosSph2 : _refPosSph;
 
-  if (_gps->interPredictionEnabledFlag && _gps->predgeom_enabled_flag){
-    refFrameSph.insert(_posSph);
-    refPosSph = _posSph;
+  if (_gps->interPredictionEnabledFlag && _gps->predgeom_enabled_flag) {
+    if (_gbh.biPredictionEnabledFlag)
+      refPosSph = _posSph;
   }
 
 
@@ -889,6 +890,9 @@ PCCTMC3Decoder3::decodeAttributeBrick(const PayloadBuffer& buf)
       altPositions = _posSph;
       bboxRpl = Box3<int>(altPositions.begin(), altPositions.end());
       minPos = bboxRpl.min;
+      if (attrInterPredParams.enableAttrInterPred) {
+        attrInterPredParams.referencePointCloud = _refFrameAlt->cloud;
+      }
       if (
         attrInterPredParams.enableAttrInterPred
         || biPredDecodeParams.attrInterPredParams2.enableAttrInterPred) {
@@ -960,7 +964,11 @@ PCCTMC3Decoder3::decodeAttributeBrick(const PayloadBuffer& buf)
     ctxtMemAttr, _currentPointCloud
     , attrInterPredParams);
 
-  _reconSliceAltPositions = _currentPointCloud;
+  if (attr_aps.spherical_coord_flag)
+    _accumCloudAltPositions.append(_currentPointCloud, _posSph);
+  else
+    _accumCloudAltPositions.append(_currentPointCloud);
+
   bool currFrameNotCodedAsB =
     (_gps->biPredictionEnabledFlag && !_gbh.biPredictionEnabledFlag);
   auto& refCloud = currFrameNotCodedAsB
@@ -968,17 +976,16 @@ PCCTMC3Decoder3::decodeAttributeBrick(const PayloadBuffer& buf)
     : attrInterPredParams.referencePointCloud;
 
   if (attr_aps.spherical_coord_flag) {
-    refCloud = _currentPointCloud;
     _currentPointCloud.swapPoints(altPositions);
   }
-  else {
+
+  // For predgeom-inter with coord. conv enabled, this copy is not required
+  if (!_gps->predgeom_enabled_flag || !attr_aps.spherical_coord_flag)
     refCloud = _currentPointCloud;
-  }
+
   if (!attr_aps.spherical_coord_flag)
     for (auto i = 0; i < _currentPointCloud.getPointCount(); i++)
       _currentPointCloud[i] -= _sliceOrigin;
-
-  _accumCloudAltPositions.append(_reconSliceAltPositions);
 
   // Note the current sliceID for loss detection
   _ctxtMemAttrSliceIds[abh.attr_sps_attr_idx] = _sliceId;

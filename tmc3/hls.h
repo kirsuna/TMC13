@@ -617,6 +617,7 @@ struct GeometryParameterSet {
   int interAzimScaleLog2;
   bool globalMotionEnabled;
   bool resamplingEnabled;
+  int maxPointsPerEntryMinus1;
 
   int biPredictionEnabledFlag;
   bool frameMergeEnabledFlag;

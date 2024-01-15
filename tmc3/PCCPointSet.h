@@ -499,6 +499,36 @@ public:
         std::next(laserAngles.begin(), dstEnd));
   }
 
+  void append(const PCCPointSet3& src, std::vector<PointType>& other)
+  {
+    if (!getPointCount())
+      addRemoveAttributes(src);
+
+    int dstEnd = positions.size();
+    int srcSize = src.positions.size();
+    assert(srcSize == other.size());
+    resize(dstEnd + srcSize);
+
+    std::copy(
+      other.begin(), other.end(),
+      std::next(positions.begin(), dstEnd));
+
+    if (hasColors() && src.hasColors())
+      std::copy(
+        src.colors.begin(), src.colors.end(),
+        std::next(colors.begin(), dstEnd));
+
+    if (hasReflectances() && src.hasReflectances())
+      std::copy(
+        src.reflectances.begin(), src.reflectances.end(),
+        std::next(reflectances.begin(), dstEnd));
+
+    if (hasLaserAngles())
+      std::copy(
+        src.laserAngles.begin(), src.laserAngles.end(),
+        std::next(laserAngles.begin(), dstEnd));
+  }
+
   void swapPoints(const size_t index1, const size_t index2)
   {
     assert(index1 < getPointCount());

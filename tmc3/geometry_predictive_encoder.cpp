@@ -1532,10 +1532,10 @@ encodePredictiveGeometry(
   int maxPtsPerTree = std::min(opt.maxPtsPerTree, int(numPoints));
   refFrameSph.init(
     gps.interAzimScaleLog2, gps.numLasers(), gps.globalMotionEnabled,
-    gps.resamplingEnabled);
+    gps.resamplingEnabled, gps.maxPointsPerEntryMinus1);
   refFrameSph2.init(
     gps.interAzimScaleLog2, gps.numLasers(), gps.globalMotionEnabled,
-    gps.resamplingEnabled);
+    gps.resamplingEnabled, gps.maxPointsPerEntryMinus1);
 
   for (int i = 0; i < numPoints;) {
     int iEnd = std::min(i + maxPtsPerTree, int(numPoints));

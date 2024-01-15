@@ -729,6 +729,7 @@ write(const SequenceParameterSet& sps, const GeometryParameterSet& gps)
       if (gps.predgeom_enabled_flag) {
         bs.writeUe(gps.interAzimScaleLog2);
         bs.write(gps.resamplingEnabled);
+        bs.writeUe(gps.maxPointsPerEntryMinus1);
       }
       bs.writeUe(gps.biPredictionEnabledFlag);
       if (gps.biPredictionEnabledFlag)
@@ -930,6 +931,7 @@ parseGps(const PayloadBuffer& buf)
       if (gps.predgeom_enabled_flag) {
         bs.readUe(&gps.interAzimScaleLog2);
         bs.read(&gps.resamplingEnabled);
+        bs.readUe(&gps.maxPointsPerEntryMinus1);
       }
       bs.readUe(&gps.biPredictionEnabledFlag);
       if (gps.biPredictionEnabledFlag)

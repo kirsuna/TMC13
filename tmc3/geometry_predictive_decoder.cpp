@@ -745,10 +745,10 @@ decodePredictiveGeometry(
   PredGeomDecoder dec(gps, gbh, ctxtMem, &aed);
   refFrameSph.init(
     gps.interAzimScaleLog2, gps.numLasers(), gps.globalMotionEnabled,
-    gps.resamplingEnabled);
+    gps.resamplingEnabled, gps.maxPointsPerEntryMinus1);
   refFrameSph2.init(
     gps.interAzimScaleLog2, gps.numLasers(), gps.globalMotionEnabled,
-    gps.resamplingEnabled);
+    gps.resamplingEnabled, gps.maxPointsPerEntryMinus1);
   dec.decode(
     gbh.footer.geom_num_points_minus1 + 1, &pointCloud[0], reconPosSph,
     refFrameSph, refFrameSph2);

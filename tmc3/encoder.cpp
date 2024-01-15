@@ -524,9 +524,11 @@ PCCTMC3Encoder3::compress(
             biPredEncodeParams._refFrameSph2.updateCurMovingStatue(_frameCounter, biPredEncodeParams.refFrameIndex2);
         } 
       }
-      _refFrameSph.updateFrame(*_gps);
+      if (params->gps.interPredictionEnabledFlag)
+        _refFrameSph.updateFrame(
+          *_gps, _refFrameAlt, minPos_ref, params->aps[0].attr_coord_scale);
       if (params->gps.biPredictionEnabledFlag && biPredEncodeParams.codeCurrentFrameAsBFrame)
-        biPredEncodeParams._refFrameSph2.updateFrame(*_gps);
+        biPredEncodeParams._refFrameSph2.updateFrame(*_gps, _refFrameAlt);
     } else if (!params->gps.trisoup_enabled_flag) {
       params->interGeom.motionParams.AdvanceFrame();
     }
@@ -1177,6 +1179,9 @@ PCCTMC3Encoder3::compressPartition(
         altPositions = _posSph;
         bboxRpl = Box3<int>(altPositions.begin(), altPositions.end());
         minPos = bboxRpl.min;
+        if (attrInterPredParams.enableAttrInterPred) {
+          attrInterPredParams.referencePointCloud = _refFrameAlt.cloud;
+        }
         if (
           attrInterPredParams.enableAttrInterPred
           || biPredEncodeParams.attrInterPredParams2.enableAttrInterPred) {
@@ -1257,7 +1262,11 @@ PCCTMC3Encoder3::compressPartition(
     attrEncoder->encode(
       *_sps, attr_sps, attr_aps, abh, ctxtMemAttr, pointCloud, &payload, attrInterPredParams);
 
-    reconSliceAltPositions = pointCloud;
+    if (reconCloudAlt && attr_aps.spherical_coord_flag)
+      reconCloudAlt->cloud.append(pointCloud, _posSph);
+    else
+      reconCloudAlt->cloud.append(pointCloud);
+
     bool currFrameNotCodedAsB =
       (_gps->biPredictionEnabledFlag
         && !biPredEncodeParams.codeCurrentFrameAsBFrame);
@@ -1265,11 +1274,11 @@ PCCTMC3Encoder3::compressPartition(
       ? biPredEncodeParams.attrInterPredParams2.referencePointCloud
       : attrInterPredParams.referencePointCloud;
     if (attr_aps.spherical_coord_flag) {
-      refCloud = pointCloud;
       pointCloud.swapPoints(altPositions);
-    } else {
-      refCloud = pointCloud;
     }
+    // For predgeom-inter with coord. conv enabled, this copy is not required
+    if (!_gps->predgeom_enabled_flag || !attr_aps.spherical_coord_flag)
+      refCloud = pointCloud;
 
     if (!attr_aps.spherical_coord_flag)
       for (auto i = 0; i < pointCloud.getPointCount(); i++)
@@ -1301,10 +1310,9 @@ PCCTMC3Encoder3::compressPartition(
       if (currFrameNotCodedAsB){
         biPredEncodeParams._refPosSph2 = _posSph;
         biPredEncodeParams._refFrameSph2.insert(_posSph);
-      }
-      else{
-        _refPosSph = _posSph;
-        _refFrameSph.insert(_posSph);
+      } else {
+        if (_gps->biPredictionEnabledFlag)
+          _refPosSph = _posSph;
       }
     }
   }
@@ -1320,8 +1328,6 @@ PCCTMC3Encoder3::compressPartition(
   if (reconCloud)
     appendSlice(reconCloud->cloud);
 
-  if (reconCloudAlt)
-    reconCloudAlt->cloud.append(reconSliceAltPositions);
 }
 
 //----------------------------------------------------------------------------

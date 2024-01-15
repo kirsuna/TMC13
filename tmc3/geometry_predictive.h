@@ -44,6 +44,7 @@
 #include "hls.h"
 #include "PCCPointSet.h"
 #include "geometry_params.h"
+#include "frame.h"
 #include <map>
 
 
@@ -399,13 +400,19 @@ class PredGeomPredictor {
 public:
   PredGeomPredictor() : numLasers(0), azimScaleLog2(0), interEnabled(false) {}
 
-  void init(int azim_scale_log2, int nLasers, const bool globMotionEnabled, const bool resamplingEnabled)
+  void init(
+    int azim_scale_log2,
+    int nLasers,
+    const bool globMotionEnabled,
+    const bool resamplingEnabled,
+    const int maxPointsPerEntryMinus1)
   {
     if (!numLasers) {
       azimScaleLog2 = azim_scale_log2;
       numLasers = nLasers;
       globalMotionEnabled = globMotionEnabled;
       enableResampling = resamplingEnabled;
+      _maxPointsPerEntryMinus1 = maxPointsPerEntryMinus1;
       refPointVals.resize(nLasers);
       refPointValsGlob.resize(nLasers);
       refPointValsCur.resize(nLasers);
@@ -417,7 +424,24 @@ public:
   {
     assert(numLasers > 0);
     for (auto const& pt : refFramePosSph) {
-      refPointValsCur[pt[2]].insert({computePhiQuantized(pt[1]), pt});
+      refPointValsCur[pt[2]].insert({computePhiQuantized(pt[1]), {pt}});
+    }
+  }
+  void insert(const GeometryParameterSet& gps, const CloudFrame& refFrame)
+  {
+    assert(numLasers > 0);
+    const CartesianToSphericalSimple cartToSpherical(gps);
+    const auto& cloud = refFrame.cloud;
+    const int numPts = cloud.getPointCount();
+    for (auto i = 0; i < numPts; i++) {
+      auto pt = cloud[i];
+      auto& refPointCurLaser = refPointValsCur[pt[2]];
+      pt[2] = cloud.getReflectance(i);
+      const auto phiQ = computePhiQuantized(pt[1]);
+      if (!_maxPointsPerEntryMinus1 || !refPointCurLaser.count(phiQ))
+        refPointCurLaser.insert({phiQ, {pt}});
+      else if (refPointCurLaser[phiQ].size() <= _maxPointsPerEntryMinus1)
+        refPointCurLaser[phiQ].push_back(pt);
     }
   }
 
@@ -436,15 +460,20 @@ public:
     if (idx == refPoints.end())
       return INVALID_REF;
 
-    if (nextPred)
-      return std::pair<bool, point_t>(true, idx->second);
-
+    if (nextPred) {
+      auto pt = idx->second[0];
+      pt[2] = currLaserId;
+      return std::pair<bool, point_t>(true, pt);
+    }
     // nextnextPred
     idx = refPoints.upper_bound(idx->first);
     if (idx == refPoints.end())
       return INVALID_REF;
-    else
-      return std::pair<bool, point_t>(true, idx->second);
+    else {
+      auto pt = idx->second[0];
+      pt[2] = currLaserId;
+      return std::pair<bool, point_t>(true, pt);
+    }
   }
 
   int computePhiQuantized(const int val) const
@@ -460,20 +489,23 @@ public:
   {
     motionParams.updateNextMovingStatus(status);
   }
-  void updateCurMovingStatue(const int currPicIdx, const int refPicIdx){
+  void updateCurMovingStatue(const int currPicIdx, const int refPicIdx)
+  {
     std::pair<int, int> currThresh;
     std::vector<int64_t> currMatrix;
     Vec3<int> currVector;
-    motionParams.getMotionParamsMultiple2(currThresh, currMatrix, currVector, currPicIdx, refPicIdx);
+    motionParams.getMotionParamsMultiple2(
+      currThresh, currMatrix, currVector, currPicIdx, refPicIdx);
     std::vector<int> currMatrix_int;
     currMatrix_int.resize(9);
-    for(int i = 0; i < 9; i++)
+    for (int i = 0; i < 9; i++)
       currMatrix_int[i] = int(currMatrix[i]);
     bool status = motionParams.checkMovingStatus(currMatrix_int, currVector);
-    updateMovingStatus( status, currPicIdx - 1 );
+    updateMovingStatus(status, currPicIdx - 1);
   }
 
-  void updateMovingStatus(const bool status, const int Ctr){
+  void updateMovingStatus(const bool status, const int Ctr)
+  {
     motionParams.updateMovingStatus(status, Ctr);
   }
   void clearRefFrame()
@@ -486,17 +518,43 @@ public:
     for (auto& laserPts : refPointValsCur)
       laserPts.clear();
   }
-  void advanceFrame() { motionParams.AdvanceFrame();}
+  void advanceFrame() { motionParams.AdvanceFrame(); }
   void setFrameCtr(const int frameCtr) { motionParams.setFrameCtr(frameCtr); }
-  void setRefFrameCtr(const int refFrameCtr) { motionParams.setRefFrameCtr(refFrameCtr); }
-  int getFrameCtr() {return motionParams.getFrameCtr(); }
+  void setRefFrameCtr(const int refFrameCtr)
+  {
+    motionParams.setRefFrameCtr(refFrameCtr);
+  }
+  int getFrameCtr() { return motionParams.getFrameCtr(); }
 
   void parseMotionParams(std::string fileName, double qs)
   {
     motionParams.parseFile(fileName, qs);
   }
-  void updateFrame(const GeometryParameterSet& gps)
+  void updateFrame(
+    const GeometryParameterSet& gps,
+    CloudFrame& refFrameAlt, pcc::point_t minPos = 0,
+    pcc::point_t coordScale = 1)
   {
+    clearRefFrameCur();
+    insert(gps, refFrameAlt);
+    {
+      int ctr = 0;
+      for (auto laserId = 0; laserId < numLasers; laserId++) {      
+      const auto& refPointCurLaser = refPointValsCur[laserId];
+        const auto scaledLaserId =
+          (((laserId - minPos[2]) * coordScale[2]) + (1 << 7)) >> 8;
+        for (const auto& entry : refPointCurLaser)
+          for (const auto& pt : entry.second) {
+            auto& ptOut = refFrameAlt.cloud[ctr];
+            ptOut[0] = (((pt[0] - minPos[0]) * coordScale[0]) + (1 << 7)) >> 8;
+            ptOut[1] = (((pt[1] - minPos[1]) * coordScale[1]) + (1 << 7)) >> 8;
+            ptOut[2] = scaledLaserId;
+            refFrameAlt.cloud.setReflectance(ctr, pt[2]);
+            ctr++;
+          }
+      }
+      refFrameAlt.cloud.resize(ctr);
+    }
     motionParams.AdvanceFrame();
     if (globalMotionEnabled) {
       CartesianToSphericalSimple cartToSpherical(gps);
@@ -507,60 +565,63 @@ public:
       for (auto& laserPts : refPointValsGlob)
         laserPts.clear();
 
-      if (!gps.biPredictionEnabledFlag)
-        motionParams.getMotionParams(currThresh, currMatrix, currVector);
-      else{
-        motionParams.getMotionParamsMultiple2(currThresh, currMatrix, currVector, motionParams.getFrameCtr() + 1, motionParams.getRefFrameCtr() + 1);
-      }
+      if (getFrameMovingState()) {
+        if (!gps.biPredictionEnabledFlag)
+          motionParams.getMotionParams(currThresh, currMatrix, currVector);
+        else {
+          motionParams.getMotionParamsMultiple2(
+            currThresh, currMatrix, currVector, motionParams.getFrameCtr() + 1,
+            motionParams.getRefFrameCtr() + 1);
+        }
 
       for (auto laserId = 0; laserId < numLasers; laserId++) {
-        for (auto ptIter : refPointValsCur[laserId]) {
-          auto pt = sphericalToCart(ptIter.second);
-          if (pt[2] > currThresh.first || pt[2] < currThresh.second) {
-            auto p = pt;
-            for (auto k = 0; k < 3; k++) {
-              int64_t x =
-                divExp2RoundHalfInfPositiveShift(
-                  currMatrix[3 * k + 0] * p[0] + currMatrix[3 * k + 1] * p[1]
-                    + currMatrix[3 * k + 2] * p[2],
-                  16, 1 << 15)
-                + currVector[k];
-              pt[k] = x;
+          for (auto ptIter : refPointValsCur[laserId]) {
+            auto pt = ptIter.second[0];
+            pt[2] = laserId;
+            pt = sphericalToCart(pt);
+            if (pt[2] > currThresh.first || pt[2] < currThresh.second) {
+              auto p = pt;
+              for (auto k = 0; k < 3; k++) {
+                int64_t x =
+                  divExp2RoundHalfInfPositiveShift(
+                    currMatrix[3 * k + 0] * p[0] + currMatrix[3 * k + 1] * p[1]
+                      + currMatrix[3 * k + 2] * p[2],
+                    16, 1 << 15)
+                  + currVector[k];
+                pt[k] = x;
+              }
+              pt = cartToSpherical(pt);
+            } else {
+              pt = ptIter.second[0];
+              pt[2] = laserId;
             }
-
-            pt = cartToSpherical(pt);
-          } else
-            pt = ptIter.second;
-          const auto phiQ = computePhiQuantized(pt[1]);
-          if (!refPointValsGlob[pt[2]].count(phiQ)){
-            refPointValsGlob[pt[2]].insert({phiQ, pt});
+            const auto phiQ = computePhiQuantized(pt[1]);
+            if (!refPointValsGlob[laserId].count(phiQ)) {
+              refPointValsGlob[laserId].insert({phiQ, {pt}});
+            } else if (refPointValsGlob[laserId][phiQ][0][0] > pt[0]) {
+              refPointValsGlob[laserId][phiQ] = {pt};
+            }
           }
-          else if (refPointValsGlob[pt[2]].at(phiQ)[0] > pt[0]){
-            refPointValsGlob[pt[2]].at(phiQ) = pt;
-          }
-
         }
-      }
 
-      if (getFrameMovingState()) {
         if (enableResampling) {
           for (auto laserId = 0; laserId < numLasers; laserId++) {
             auto& ptsZero = refPointValsCur[laserId];
             auto& ptsGlob = refPointValsGlob[laserId];
             for (auto& ptIter : ptsZero) {
               pcc::point_t ptA = 0, ptB = 0;
-              auto& pt = ptIter.second;
+              auto& pt = ptIter.second[0];
               auto phiQ = computePhiQuantized(pt[1]);
               if (ptsGlob.count(phiQ)) {
-                const auto& colPt = ptsGlob[phiQ];
+                const auto& colPt = ptsGlob[phiQ][0];
                 ptA = colPt;
                 if (colPt[1] < pt[1]) {
                   auto idx = ptsGlob.upper_bound(phiQ);
-                  ptB = (idx == ptsGlob.end()) ? ptA : idx->second;
+                  ptB = (idx == ptsGlob.end()) ? ptA : idx->second[0];
                 } else if (colPt[1] > pt[1]) {
                   auto idx = ptsGlob.lower_bound(phiQ);
                   ptB =
-                    (idx == ptsGlob.begin()) ? ptA : std::prev(idx)->second;
+                    (idx == ptsGlob.begin()) ? ptA : std::prev(idx)->second[0];
                 } else
                   ptB = ptA;
               } else {
@@ -570,8 +631,8 @@ public:
                   idx1 = std::prev(idx);
                 if (idx == ptsGlob.end())
                   idx = idx1;
-                ptA = idx->second;
-                ptB = idx1->second;
+                ptA = idx->second[0];
+                ptB = idx1->second[0];
               }
               int64_t delAzim = ptA[1] - ptB[1];
               int64_t delRad = (ptA[0] - ptB[0]);
@@ -589,35 +650,43 @@ public:
             }
           }
         }
-      } 
-      else
+      } else
         for (auto laserId = 0; laserId < numLasers; laserId++)
           refPointValsGlob[laserId] = std::move(refPointVals[laserId]);
 
       for (auto laserId = 0; laserId < numLasers; laserId++)
         refPointVals[laserId] = std::move(refPointValsCur[laserId]);
-    } 
-    else {
+    } else {
       for (auto laserId = 0; laserId < numLasers; laserId++)
         refPointVals[laserId] = std::move(refPointValsCur[laserId]);
     }
+
   }
-  template <typename T>
-  void getMotionParams(std::pair<int, int> &th, std::vector<T> &mat, Vec3<int> &tr) const
+  template<typename T>
+  void getMotionParams(
+    std::pair<int, int>& th, std::vector<T>& mat, Vec3<int>& tr) const
   {
     motionParams.getMotionParams(th, mat, tr);
   }
-  template <typename T>
-  void getMotionParamsMultiple(std::pair<int, int> &th, std::vector<T> &mat, Vec3<int> &tr, const int _curPicIndex, const int _refPicIndex) const
+  template<typename T>
+  void getMotionParamsMultiple(
+    std::pair<int, int>& th,
+    std::vector<T>& mat,
+    Vec3<int>& tr,
+    const int _curPicIndex,
+    const int _refPicIndex) const
   {
-    motionParams.getMotionParamsMultiple2(th, mat, tr, _curPicIndex, _refPicIndex);
+    motionParams.getMotionParamsMultiple2(
+      th, mat, tr, _curPicIndex, _refPicIndex);
   }
-  void setMotionParams(std::pair<int, int> &th, std::vector<int> &mat, Vec3<int> &tr) 
+  void setMotionParams(
+    std::pair<int, int>& th, std::vector<int>& mat, Vec3<int>& tr)
   {
     motionParams.setMotionParams(th, mat, tr);
   }
-  
-  void setGlobalMotionEnabled(bool GlobalMotionEnabled){
+
+  void setGlobalMotionEnabled(bool GlobalMotionEnabled)
+  {
     globalMotionEnabled = GlobalMotionEnabled;
   }
   bool getGlobalMotionEnabled() { return globalMotionEnabled; }
@@ -631,16 +700,19 @@ public:
   {
     motionParams.setMovingStatus(movsts);
   }
- private:
-  std::vector<std::map<int, pcc::point_t>> refPointVals;
-  std::vector<std::map<int, pcc::point_t>> refPointValsGlob;
-  std::vector<std::map<int, pcc::point_t>> refPointValsCur;
+
+private:
+  typedef std::vector<std::map<int, std::vector<pcc::point_t>>> SphericalReferenceFrame;
+  SphericalReferenceFrame refPointVals;
+  SphericalReferenceFrame refPointValsGlob;
+  SphericalReferenceFrame refPointValsCur;
   MotionParameters motionParams;
   int numLasers;
   int azimScaleLog2;
   bool interEnabled;
   bool globalMotionEnabled;
   bool enableResampling;
+  int _maxPointsPerEntryMinus1;
 };
 
 //============================================================================

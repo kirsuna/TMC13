@@ -656,7 +656,7 @@ AttributeDecoder::decodeReflectancesRaht(
     attributes.data(), attribCount, voxelCount, coefficients.data(),
     aps.raht_extension, attrInterPredParams);
 
-  const int64_t maxReflectance = (1 << desc.bitdepth) - 1;
+  const int64_t maxReflectance = (1 << (int64_t)desc.bitdepth) - 1;
   const int64_t minReflectance = 0;
   for (int n = 0; n < voxelCount; n++) {
     int64_t val = attributes[attribCount * n];
