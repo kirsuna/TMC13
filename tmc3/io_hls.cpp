@@ -1129,6 +1129,10 @@ write(const SequenceParameterSet& sps, const AttributeParameterSet& aps)
           bs.writeUe(aps.rahtPredParams.raht_prediction_weights[i]);
       bs.writeUe(aps.rahtPredParams.raht_prediction_search_range);
     }
+
+    if (aps.attr_encoding == AttributeEncoding::kRAHTransform)
+      bs.write(aps.last_component_prediction_enabled_flag);
+
   }
 
   bs.byteAlign();
@@ -1156,6 +1160,8 @@ parseAps(const PayloadBuffer& buf, const SequenceParameterSet& sps)
   aps.scalable_lifting_enabled_flag = false;
   aps.aps_slice_dist2_deltas_present_flag = false;
   aps.dist2 = 0;
+  aps.last_component_prediction_enabled_flag = false;
+
   if (aps.lodParametersPresent()) {
     bs.readUe(&aps.num_pred_nearest_neighbours_minus1);
     bs.readUe(&aps.inter_lod_search_range);
@@ -1304,6 +1310,9 @@ parseAps(const PayloadBuffer& buf, const SequenceParameterSet& sps)
       }
       bs.readUe(&aps.rahtPredParams.raht_prediction_search_range);
     }
+
+    if (aps.attr_encoding == AttributeEncoding::kRAHTransform)
+      bs.read(&aps.last_component_prediction_enabled_flag);
   }
 
   bs.byteAlign();

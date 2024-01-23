@@ -41,6 +41,7 @@
 #include "hls.h"
 #include "PCCTMC3Common.h"
 #include <vector>
+#include <queue>
 
 namespace pcc {
 
@@ -93,4 +94,15 @@ private:
   double sumCostBits;
 };
 
+
+
+struct PCCRAHTComputeLCP {
+  int8_t computeLastComponentPredictionCoeff(int m, int64_t coeffs[][3]);
+
+private:
+  int64_t sumk1k2 = 0;
+  int64_t sumk1k1 = 0;
+  std::queue<int64_t> window1;
+  std::queue<int64_t> window2;
+};
 } /* namespace pcc */

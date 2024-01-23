@@ -297,6 +297,11 @@ PCCTMC3Encoder3::compress(
     }
   }
 
+  for (auto& aps : params->aps)
+    if (aps.attr_encoding == AttributeEncoding::kRAHTransform)
+      aps.rahtPredParams.raht_last_component_prediction_enabled_flag =
+        aps.last_component_prediction_enabled_flag;
+
   // placeholder to "activate" the parameter sets
   _sps = &params->sps;
   _gps = &params->gps;

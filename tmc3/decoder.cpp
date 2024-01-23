@@ -362,6 +362,8 @@ PCCTMC3Decoder3::decompress(
 
   case PayloadType::kAttributeParameterSet: {
     auto aps = parseAps(*buf,*_sps);
+    aps.rahtPredParams.raht_last_component_prediction_enabled_flag =
+      aps.last_component_prediction_enabled_flag;
     // HACK: assume that an SPS has been received prior to the APS.
     // This is not required, and parsing of the APS is independent of the SPS.
     // todo(df): move APS fixup to activation process
