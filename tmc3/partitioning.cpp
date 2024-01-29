@@ -325,7 +325,9 @@ partitionByUniformSquare(
         slice.pointIndexesPadding.push_back(n);
       }
       if (int(cloud[n][maxEdgeAxis]) - (sliceSize * p) >= sliceSize - th
-          && int(cloud[n][maxEdgeAxis]) - (sliceSize * p) <= sliceSize){
+        && int(cloud[n][maxEdgeAxis]) - (sliceSize * p) <= sliceSize
+        && p + 1 < firstSliceNum
+          ) {
         auto& slice = slicesFirstAxis[p+1];
         slice.pointIndexesPadding.push_back(n);
       }
@@ -344,12 +346,16 @@ partitionByUniformSquare(
               && int(cloud[sliceRough.pointIndexesPadding[j]][midEdgeAxis]) - (sliceSize * q) >= 0
               && q > 0){
             auto& slice = slices[s * secondSliceNum + (q-1)];
-            slice.pointIndexesPadding.push_back(sliceRough.pointIndexes[j]);
+            //slice.pointIndexesPadding.push_back(sliceRough.pointIndexes[j]);
+            slice.pointIndexesPadding.push_back(sliceRough.pointIndexesPadding[j]);
           }
           if (int(cloud[sliceRough.pointIndexesPadding[j]][midEdgeAxis]) - (sliceSize * q) >= sliceSize - th
-              && int(cloud[sliceRough.pointIndexesPadding[j]][midEdgeAxis]) - (sliceSize * q) <= sliceSize){
+            && int(cloud[sliceRough.pointIndexesPadding[j]][midEdgeAxis]) - (sliceSize * q) <= sliceSize
+            && (s * secondSliceNum + (q + 1) < sliceNum)
+              ) {
             auto& slice = slices[s * secondSliceNum + (q+1)];
-            slice.pointIndexesPadding.push_back(sliceRough.pointIndexes[j]);
+            //slice.pointIndexesPadding.push_back(sliceRough.pointIndexes[j]);
+            slice.pointIndexesPadding.push_back(sliceRough.pointIndexesPadding[j]);
           }
         }
         else {
@@ -363,7 +369,9 @@ partitionByUniformSquare(
             slice.pointIndexesPadding.push_back(sliceRough.pointIndexes[n]);
           }
           if (int(cloud[sliceRough.pointIndexes[n]][midEdgeAxis]) - (sliceSize * q) >= sliceSize - th
-              && int(cloud[sliceRough.pointIndexes[n]][midEdgeAxis]) - (sliceSize * q) <= sliceSize){
+              && int(cloud[sliceRough.pointIndexes[n]][midEdgeAxis]) - (sliceSize * q) <= sliceSize
+              && (s * secondSliceNum + (q + 1) < sliceNum)
+              ){
             auto& slice = slices[s * secondSliceNum + (q+1)];
             slice.pointIndexesPadding.push_back(sliceRough.pointIndexes[n]);
           }
