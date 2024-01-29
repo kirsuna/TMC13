@@ -3,7 +3,7 @@ Obtaining the software
 
 The authoritative location of the software is the following git
 repository:
-   <http://mpegx.int-evry.fr/software/MPEG/PCC/TM/mpeg-pcc-tmc13>
+   <https://git.mpeg.expert/MPEG/3dgh/g-pcc/software/tm/mpeg-pcc-tmc13.git>
 
 Each released version may be identified by a version control system tag in
 the form `release-v${version}`.
@@ -11,7 +11,7 @@ the form `release-v${version}`.
 An example:
 
 ```console
-$ git clone http://mpegx.int-evry.fr/software/MPEG/PCC/TM/mpeg-pcc-tmc13.git
+$ git clone https://git.mpeg.expert/MPEG/3dgh/g-pcc/software/tm/mpeg-pcc-tmc13.git 
 $ cd mpeg-pcc-tmc13
 $ git checkout release-v4.0
 ```

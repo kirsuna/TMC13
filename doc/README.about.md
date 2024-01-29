@@ -20,5 +20,5 @@ sent to the general MPEG 3DGC email reflector at
 Bug reporting
 -------------
 Bugs should be reported on the issue tracker set up at
-<http://mpegx.int-evry.fr/software/MPEG/PCC/TM/mpeg-pcc-tmc13/issues>.
+<https://git.mpeg.expert/MPEG/3dgh/g-pcc/software/tm/mpeg-pcc-tmc13/-/issues>.
 
