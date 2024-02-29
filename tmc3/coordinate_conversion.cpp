@@ -99,7 +99,7 @@ normalisedAxesWeights(Box3<int>& bbox, int forcedMaxLog2)
 
   Vec3<int> axesWeight;
   for (int k = 0; k < 3; k++)
-    axesWeight[k] = (maxWidth << 8) / width[k];
+    axesWeight[k] = 1 << (int)std::ceil(std::log2((maxWidth << 8) / width[k]));
 
   return axesWeight;
 }
