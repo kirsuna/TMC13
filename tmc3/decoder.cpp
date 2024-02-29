@@ -114,7 +114,8 @@ PCCTMC3Decoder3::dectectFrameBoundary(const PayloadBuffer* buf)
     break;
   }
 
-  case PayloadType::kGeometryBrick: {
+  case PayloadType::kGeometryBrick:
+  case PayloadType::kGeometryBrickUnusedForRef: {
     activateParameterSets(parseGbhIds(*buf));
     auto gbh = parseGbh(*_sps, *_gps, *buf, nullptr, nullptr);
     frameCtrLsb = gbh.frame_ctr_lsb;
@@ -379,6 +380,7 @@ PCCTMC3Decoder3::decompress(
     return 0;
 
   case PayloadType::kGeometryBrick:
+  case PayloadType::kGeometryBrickUnusedForRef:
     if (!_outputInitialized)
       startFrame();
 
@@ -389,7 +391,10 @@ PCCTMC3Decoder3::decompress(
 
     return decodeGeometryBrick(*buf);
 
-  case PayloadType::kAttributeBrick: decodeAttributeBrick(*buf); return 0;
+  case PayloadType::kAttributeBrick:
+  case PayloadType::kAttributeBrickUnusedForRef:
+    decodeAttributeBrick(*buf);
+    return 0;
 
   case PayloadType::kConstantAttribute:
     decodeConstantAttribute(*buf);

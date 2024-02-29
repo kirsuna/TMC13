@@ -58,6 +58,8 @@ enum class PayloadType
   kConstantAttribute = 7,
   kGeneralizedAttrParamInventory = 8,
   kUserData = 9,
+  kGeometryBrickUnusedForRef = 10,
+  kAttributeBrickUnusedForRef = 11,
 };
 
 //============================================================================
