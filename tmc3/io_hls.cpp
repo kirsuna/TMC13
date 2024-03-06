@@ -436,8 +436,7 @@ write(const SequenceParameterSet& sps)
 
   int num_attribute_sets = int(sps.attributeSets.size());
   bs.writeUe(num_attribute_sets);
-  if (num_attribute_sets > 1)
-    bs.write(sps.cross_attr_prediction_enabled_flag);
+
   for (const auto& attr : sps.attributeSets) {
     bs.writeUe(attr.attr_num_dimensions_minus1);
     bs.writeUe(attr.attr_instance_id);
@@ -462,10 +461,15 @@ write(const SequenceParameterSet& sps)
   bool sps_extension_flag = true;
   bs.write(sps_extension_flag);
 
-  bs.write(sps.inter_frame_prediction_enabled_flag);
-  if (sps.inter_frame_prediction_enabled_flag)
-    bs.write(sps.inter_entropy_continuation_enabled_flag);
-  bs.write(sps.bypass_bin_coding_without_prob_update);
+  if (sps_extension_flag) {
+    bs.write(sps.inter_frame_prediction_enabled_flag);
+    if (sps.inter_frame_prediction_enabled_flag)
+      bs.write(sps.inter_entropy_continuation_enabled_flag);
+    bs.write(sps.bypass_bin_coding_without_prob_update);
+
+    if (num_attribute_sets > 1)
+      bs.write(sps.cross_attr_prediction_enabled_flag);
+  }
 
   bs.byteAlign();
 
@@ -532,10 +536,9 @@ parseSps(const PayloadBuffer& buf)
   bs.readUe(&sps.global_scale_mul_log2());
   bs.readUe(&sps.global_scale_fp_bits());
   bs.readUn(sps.global_scale_fp_bits(), &sps.global_scale_rem());
-  sps.cross_attr_prediction_enabled_flag = false;
+
   int num_attribute_sets = int(bs.readUe());
-  if (num_attribute_sets > 1)
-    bs.read(&sps.cross_attr_prediction_enabled_flag);
+
   for (int i = 0; i < num_attribute_sets; i++) {
     sps.attributeSets.emplace_back();
     auto& attr = sps.attributeSets.back();
@@ -569,12 +572,17 @@ parseSps(const PayloadBuffer& buf)
   sps.inter_frame_prediction_enabled_flag = false;
   sps.bypass_bin_coding_without_prob_update = false;
   sps.inter_entropy_continuation_enabled_flag = false;
+  sps.cross_attr_prediction_enabled_flag = false;
+
   bool sps_extension_flag = bs.read();
   if (sps_extension_flag) {
     bs.read(&sps.inter_frame_prediction_enabled_flag);
     if (sps.inter_frame_prediction_enabled_flag)
       bs.read(&sps.inter_entropy_continuation_enabled_flag);
     bs.read(&sps.bypass_bin_coding_without_prob_update);
+
+    if (num_attribute_sets > 1)
+      bs.read(&sps.cross_attr_prediction_enabled_flag);
   }
 
     // conformance check: reordering constraint must be set with continuation
@@ -1039,11 +1047,6 @@ write(const SequenceParameterSet& sps, const AttributeParameterSet& aps)
       }
     }
   }
-  if (sps.cross_attr_prediction_enabled_flag) {
-    bs.write(aps.cross_attr_prediction_enabled_this_type);
-    if (aps.cross_attr_prediction_enabled_this_type)
-      bs.writeUe(aps.refAttrIdx);
-  }
 
   if (aps.attr_encoding == AttributeEncoding::kPredictingTransform) {
     bs.writeUe(aps.max_num_direct_predictors);
@@ -1135,6 +1138,11 @@ write(const SequenceParameterSet& sps, const AttributeParameterSet& aps)
     if (aps.attr_encoding == AttributeEncoding::kRAHTransform)
       bs.write(aps.last_component_prediction_enabled_flag);
 
+    if (sps.cross_attr_prediction_enabled_flag) {
+      bs.write(aps.cross_attr_prediction_enabled_this_type);
+      if (aps.cross_attr_prediction_enabled_this_type)
+        bs.writeUe(aps.refAttrIdx);
+    }
   }
 
   bs.byteAlign();
@@ -1212,11 +1220,6 @@ parseAps(const PayloadBuffer& buf, const SequenceParameterSet& sps)
   aps.intra_lod_prediction_skip_layers = aps.kSkipAllLayers;
   aps.quant_neigh_weight = 0;
 
-  if (sps.cross_attr_prediction_enabled_flag) {
-    bs.read(&aps.cross_attr_prediction_enabled_this_type);
-    if (aps.cross_attr_prediction_enabled_this_type)
-      bs.readUe(&aps.refAttrIdx);
-  }
   if (aps.attr_encoding == AttributeEncoding::kPredictingTransform) {
     bs.readUe(&aps.max_num_direct_predictors);
     aps.adaptive_prediction_threshold = 0;
@@ -1315,6 +1318,12 @@ parseAps(const PayloadBuffer& buf, const SequenceParameterSet& sps)
 
     if (aps.attr_encoding == AttributeEncoding::kRAHTransform)
       bs.read(&aps.last_component_prediction_enabled_flag);
+
+    if (sps.cross_attr_prediction_enabled_flag) {
+      bs.read(&aps.cross_attr_prediction_enabled_this_type);
+      if (aps.cross_attr_prediction_enabled_this_type)
+        bs.readUe(&aps.refAttrIdx);
+    }
   }
 
   bs.byteAlign();
