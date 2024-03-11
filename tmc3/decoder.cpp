@@ -644,13 +644,15 @@ PCCTMC3Decoder3::decodeGeometryBrick(const PayloadBuffer& buf)
       }
     }     
     else if(_gps->interPredictionEnabledFlag) {
-      if (_gps->globalMotionEnabled) {
-        _refFrameSph.setFrameMovingState(_gbh.interFrameRefGmcFlag);
-        _refFrameSph.setMotionParams(_gbh.gm_thresh, _gbh.gm_matrix, _gbh.gm_trans);
+      if (_gps->predgeom_enabled_flag) {
+        if (_gps->globalMotionEnabled) {
+          _refFrameSph.setFrameMovingState(_gbh.interFrameRefGmcFlag);
+          _refFrameSph.setMotionParams(
+            _gbh.gm_thresh, _gbh.gm_matrix, _gbh.gm_trans);
+        }
+        _refFrameSph.updateFrame(
+          *_gps, *_refFrameAlt, minPos_ref, _apss[0].attr_coord_scale);
       }
-      _refFrameSph.updateFrame(
-        *_gps, *_refFrameAlt, minPos_ref,
-        _apss[0].attr_coord_scale);
     }
   }
 
@@ -964,7 +966,7 @@ PCCTMC3Decoder3::decodeAttributeBrick(const PayloadBuffer& buf)
     ctxtMemAttr, _currentPointCloud
     , attrInterPredParams);
 
-  if (attr_aps.spherical_coord_flag)
+  if (attr_aps.spherical_coord_flag && _gps->predgeom_enabled_flag)
     _accumCloudAltPositions.append(_currentPointCloud, _posSph);
   else
     _accumCloudAltPositions.append(_currentPointCloud);
@@ -976,12 +978,13 @@ PCCTMC3Decoder3::decodeAttributeBrick(const PayloadBuffer& buf)
     : attrInterPredParams.referencePointCloud;
 
   if (attr_aps.spherical_coord_flag) {
+    if (!_gps->predgeom_enabled_flag)
+      refCloud = _currentPointCloud;
     _currentPointCloud.swapPoints(altPositions);
-  }
-
-  // For predgeom-inter with coord. conv enabled, this copy is not required
-  if (!_gps->predgeom_enabled_flag || !attr_aps.spherical_coord_flag)
+  } 
+  else {
     refCloud = _currentPointCloud;
+  }
 
   if (!attr_aps.spherical_coord_flag)
     for (auto i = 0; i < _currentPointCloud.getPointCount(); i++)

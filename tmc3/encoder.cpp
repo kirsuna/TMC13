@@ -1262,7 +1262,7 @@ PCCTMC3Encoder3::compressPartition(
     attrEncoder->encode(
       *_sps, attr_sps, attr_aps, abh, ctxtMemAttr, pointCloud, &payload, attrInterPredParams);
 
-    if (reconCloudAlt && attr_aps.spherical_coord_flag)
+    if (reconCloudAlt && attr_aps.spherical_coord_flag && _gps->predgeom_enabled_flag)
       reconCloudAlt->cloud.append(pointCloud, _posSph);
     else
       reconCloudAlt->cloud.append(pointCloud);
@@ -1274,11 +1274,13 @@ PCCTMC3Encoder3::compressPartition(
       ? biPredEncodeParams.attrInterPredParams2.referencePointCloud
       : attrInterPredParams.referencePointCloud;
     if (attr_aps.spherical_coord_flag) {
+      if (!_gps->predgeom_enabled_flag)
+        refCloud = pointCloud;
       pointCloud.swapPoints(altPositions);
-    }
-    // For predgeom-inter with coord. conv enabled, this copy is not required
-    if (!_gps->predgeom_enabled_flag || !attr_aps.spherical_coord_flag)
+    } 
+	else {
       refCloud = pointCloud;
+    }
 
     if (!attr_aps.spherical_coord_flag)
       for (auto i = 0; i < pointCloud.getPointCount(); i++)
