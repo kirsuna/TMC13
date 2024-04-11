@@ -34,8 +34,9 @@
  */
 
 #include "coordinate_conversion.h"
-
+#include "PCCPointSet.h"
 #include "geometry_octree.h"
+
 
 namespace pcc {
 
@@ -143,7 +144,30 @@ offsetAndScaleShift(
   }
 }
 
-
+void
+offsetAndScaleShift(
+  const Vec3<int>& minPosShift,
+  const Vec3<int>& axisWeight,
+  PCCPointSet3* refIndexCloud,
+  int* begin,
+  int* end)
+{
+  pcc::point_t shift = minPosShift;
+  pcc::point_t shiftD = {1, 1, 1};
+  for (int i = 0; i < 3; i++) {
+    if (minPosShift[i] < 0) {
+      shift[i] = -minPosShift[i];
+      shiftD[i] = -1;
+    }
+  }
+  auto shiftScal = times(shift, axisWeight) >> 8;
+  shiftScal[0] *= shiftD[0];
+  shiftScal[1] *= shiftD[1];
+  shiftScal[2] *= shiftD[2];
+  for (auto it = begin; it != end; it++) {
+    (*refIndexCloud)[*it] = (*refIndexCloud)[*it] + shiftScal;
+  }
+}
 //============================================================================
 
 }  // namespace pcc

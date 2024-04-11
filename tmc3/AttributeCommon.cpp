@@ -188,13 +188,20 @@ predModeEligibleRefl(
   int64_t minValue = 0;
   int64_t maxValue = 0;
   for (int i = 0; i < predictor.neighborCount; ++i) {
-    const attr_t reflectanceNeighbor = attrInterPredParams.enableAttrInterPred
-      ? (predictor.neighbors[i].interFrameRef
-           ? attrInterPredParams.referencePointCloud
-           : pointCloud)
-          .getReflectance(predictor.neighbors[i].pointIndex)
-      : pointCloud.getReflectance(
+    attr_t reflectanceNeighbor = 0;
+    if (attrInterPredParams.enableAttrInterPred) {
+      if (predictor.neighbors[i].interFrameRef)
+          reflectanceNeighbor =
+            attrInterPredParams.getReflectance(
+              predictor.neighbors[i].pointIndex);
+      else
+        reflectanceNeighbor =
+          pointCloud.getReflectance(predictor.neighbors[i].pointIndex);
+    } else {
+      reflectanceNeighbor = pointCloud.getReflectance(
         indexes[predictor.neighbors[i].predictorIndex]);
+    }
+
     //const attr_t reflectanceNeighbor = pointCloud.getReflectance(
     //  indexes[predictor.neighbors[i].predictorIndex]);
     if (i == 0 || reflectanceNeighbor < minValue) {

@@ -631,8 +631,13 @@ AttributeDecoder::decodeReflectancesRaht(
     attrInterPredParams.paramsForInterRAHT.voxelCount = voxelCount_ref;
     std::vector<MortonCodeWithIndex> packedVoxel_ref(voxelCount_ref);
     for (int n = 0; n < voxelCount_ref; n++) {
-      packedVoxel_ref[n].mortonCode =
-        mortonAddr(attrInterPredParams.referencePointCloud[n]);
+      if (AttributeInterPredParams::useRefCloudIndex) {
+        const int idx = attrInterPredParams.refPointCloudIndices[n];
+        packedVoxel_ref[n].mortonCode =
+          mortonAddr((*attrInterPredParams.refIndexCloud)[idx]);
+      } else
+        packedVoxel_ref[n].mortonCode =
+          mortonAddr(attrInterPredParams.referencePointCloud[n]);
       packedVoxel_ref[n].index = n;
     }
 
@@ -646,8 +651,7 @@ AttributeDecoder::decodeReflectancesRaht(
       attrInterPredParams.paramsForInterRAHT.mortonCode[n] =
         packedVoxel_ref[n].mortonCode;
       attrInterPredParams.paramsForInterRAHT.attributes[n] =
-        attrInterPredParams.referencePointCloud.getReflectance(
-          packedVoxel_ref[n].index);
+        attrInterPredParams.getReflectance(packedVoxel_ref[n].index);
     }
   }
 
@@ -860,13 +864,10 @@ AttributeDecoder::decodeReflectancesLift(
   reflectances.resize(pointCount);
 
   std::vector<int64_t> reflectancesRef;
-  const auto& referencePointCloud = attrInterPredParams.referencePointCloud;
-  reflectancesRef.resize(referencePointCloud.getPointCount());
-
-  for (size_t index = 0; index < referencePointCloud.getPointCount();
-       ++index) {
-    reflectancesRef[index] =
-      int32_t(referencePointCloud.getReflectance(index))
+  const int numPts = attrInterPredParams.getPointCount();
+  reflectancesRef.resize(numPts);
+  for (size_t index = 0; index < numPts; ++index) {
+    reflectancesRef[index] = int32_t(attrInterPredParams.getReflectance(index))
       << kFixedPointAttributeShift;
   }
 

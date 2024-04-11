@@ -750,12 +750,13 @@ AttributeEncoder::decidePredModeRefl(
     if (i == aps.max_num_direct_predictors)
       break;
     
-    if (attrInterPredParams.enableAttrInterPred)
-      attrPred = predictor.neighbors[i].interFrameRef
-        ? attrInterPredParams.referencePointCloud.getReflectance(
-          predictor.neighbors[i].pointIndex)
-        : pointCloud.getReflectance(predictor.neighbors[i].pointIndex);
-    else
+    if (attrInterPredParams.enableAttrInterPred) {
+      const int nPtIdx = predictor.neighbors[i].pointIndex;
+      if (predictor.neighbors[i].interFrameRef)
+        attrPred = attrInterPredParams.getReflectance(nPtIdx);
+      else
+        attrPred = pointCloud.getReflectance(nPtIdx);
+    } else
       attrPred = pointCloud.getReflectance(
         indexesLOD[predictor.neighbors[i].predictorIndex]);
 
@@ -1307,8 +1308,13 @@ AttributeEncoder::encodeReflectancesTransformRaht(
     attrInterPredParams.paramsForInterRAHT.voxelCount = voxelCount_ref;
     std::vector<MortonCodeWithIndex> packedVoxel_ref(voxelCount_ref);
     for (int n = 0; n < voxelCount_ref; n++) {
-      packedVoxel_ref[n].mortonCode =
-        mortonAddr(attrInterPredParams.referencePointCloud[n]);
+      if (AttributeInterPredParams::useRefCloudIndex) {
+        const int idx = attrInterPredParams.refPointCloudIndices[n];
+        packedVoxel_ref[n].mortonCode =
+          mortonAddr((*attrInterPredParams.refIndexCloud)[idx]);
+      } else
+        packedVoxel_ref[n].mortonCode =
+          mortonAddr(attrInterPredParams.referencePointCloud[n]);
       packedVoxel_ref[n].index = n;
     }
 
@@ -1322,8 +1328,7 @@ AttributeEncoder::encodeReflectancesTransformRaht(
       attrInterPredParams.paramsForInterRAHT.mortonCode[n] =
         packedVoxel_ref[n].mortonCode;
       attrInterPredParams.paramsForInterRAHT.attributes[n] =
-        attrInterPredParams.referencePointCloud.getReflectance(
-          packedVoxel_ref[n].index);
+        attrInterPredParams.getReflectance(packedVoxel_ref[n].index);
     }
   }
 
@@ -1634,10 +1639,10 @@ AttributeEncoder::encodeReflectancesLift(
 
   for (size_t index = 0; index < attrInterPredParams.getPointCount();
        ++index) {
-    reflectancesRef[index] =
-      int32_t(attrInterPredParams.referencePointCloud.getReflectance(index))
+    reflectancesRef[index] = int32_t(attrInterPredParams.getReflectance(index))
       << kFixedPointAttributeShift;
   }
+  
 
   for (size_t i = 0; (i + 1) < lodCount; ++i) {
     const size_t lodIndex = lodCount - i - 1;

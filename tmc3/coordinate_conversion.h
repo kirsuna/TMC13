@@ -36,6 +36,7 @@
 #pragma once
 
 #include "PCCMath.h"
+#include "PCCPointSet.h"
 
 namespace pcc {
 
@@ -66,6 +67,13 @@ void offsetAndScaleShift(
   const Vec3<int>& axisWeight,
   Vec3<int>* begin,
   Vec3<int>* end);
+
+void offsetAndScaleShift(
+  const Vec3<int>& minPos_shift,
+  const Vec3<int>& axisWeight,
+  PCCPointSet3* refIndexCloud,
+  int* begin,
+  int* end);
 //============================================================================
 
 }  // namespace pcc
